@@ -1,0 +1,555 @@
+
+
+
+
+/* {
+.navbar-center li{
+
+    margin: 0 4px;
+}
+
+.navbar-center li a{
+font-size: 5px;
+}
+
+.navbar{
+    background-color: darkgoldenrod;
+} */
+
+
+
+/* @media (min-width: 400px) and (max-width: 600px) {
+    
+} */
+
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background-color: #f0f8ff;
+}
+
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: white;
+}
+
+.navbar-left .logo img {
+    height: 40px;
+}
+
+.navbar-center {
+    list-style-type: none;
+    display: flex;
+    margin: auto;
+    padding: auto;
+}
+
+.navbar-center li {
+    margin: 0 30px;
+}
+
+.navbar-center li a {
+    color: white;
+    text-decoration: none;
+    font-size: 16px;
+}
+
+.navbar-center li a:hover {
+    color: #ffd700;
+}
+
+.navbar-right {
+    margin-left: auto;
+}
+
+.buy-now {
+    background-color: #00aaff;
+    color: white;
+    padding: 10px 20px;
+    border: 2px solid white;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+
+.buy-now:hover {
+    background-color: #005f99;
+}
+
+.hero {
+    text-align: center;
+    padding: 60px 20px;
+    background-color: #00aaff;
+    color: white;
+    display: flex;
+    /* background-image: url('simpsons.jpg');
+    background-size: cover;
+    background-position: center; */
+}
+
+.hero-content h1 {
+    font-size: 60px;
+    margin: 0;
+}
+
+.hero-content{
+    margin: auto;
+}
+
+.hero-content h2 {
+    font-size: 40px;
+    margin: 0;
+    color: #ffd700;
+}
+
+.hero-content p {
+    font-size: 18px;
+    margin-top: 10px;
+}
+
+.hero-button {
+    background-color: #ffd700;
+    color: black;
+    padding: 15px 30px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 18px;
+    margin-top: 20px;
+}
+
+.hero-connect {
+    background-color: #ffd700;
+    color: black;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 18px;
+    margin-top: 20px;
+}
+
+.hero-button:hover {
+    background-color: #ffb300;
+}
+
+.hero-timer {
+    width: auto;
+    height:    auto;
+    /* border: 0.5px solid white; */
+    border-radius:2%;
+
+    /* margin-bottom: 20px; */
+    margin: auto;
+    padding: 5px;
+    background-color: #00bfff;
+    box-shadow: 1px 1px 2px white;
+    /* text-align: left; */
+    /* margin-top: 20px; */
+}
+
+.timer-box h3 {
+    font-size: 20px;
+    margin-bottom: 10px;
+}
+.timer-box {
+  margin: 10px;
+  /* border: 1px solid white; */
+ 
+}
+
+
+.timer {
+    display: flex;
+    gap: 5px;
+    
+   
+}
+
+.timer .time {
+    background-color: white;
+    color: black;
+    padding: 10px;
+    border-radius: 10px;
+    text-align: center;
+    font-size: 20px;
+    margin: auto;
+}
+
+.timer .time span {
+    display: block;
+    font-size: 12px;
+    color: #333;
+}
+
+.presale-info,
+.sol-amount,
+.bart-token {
+    margin-top: 20px;
+    font-size: 18px;
+    color: white;
+   
+}
+
+.sol-amount input {
+    width: auto;
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 5px;
+    border: none;
+}
+
+.the-bart,
+.about,
+.tokenomics {
+    padding: 40px 20px;
+    text-align: center;
+    background-color: #00bfff;
+    color: white;
+}
+
+.the-bart h2,
+.about h2,
+.tokenomics h2 {
+    font-size: 36px;
+    margin-bottom: 20px;
+}
+
+.learn-more {
+    background-color: white;
+    color: #00aaff;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 18px;
+    margin-top: 20px;
+}
+
+.learn-more:hover {
+    background-color: #e6f7ff;
+}
+
+.token-chart img {
+    max-width: 100%;
+    height: auto;
+}
+
+.token-distribution {
+    list-style-type: none;
+    padding: 0;
+    margin-top: 20px;
+    color: white;
+}
+
+.token-distribution li {
+    margin: 5px 0;
+    font-size: 18px;
+}
+
+@media (min-width:400px) and ( max-width:600px)
+{
+    .navbar-center li{
+
+        margin: 0 10px;
+    }
+    
+    .navbar-center li a{
+    font-size: 13px;
+    }
+    
+    .buy-now{
+        font-size: 13px;
+    } 
+
+    .hero{
+        padding: 30px 10px ;
+        
+    }
+    .hero-content h1 {
+        font-size: 30px;
+        margin: 0;
+    }
+    
+    .hero-content{
+        margin: auto;
+    }
+    
+    .hero-content h2 {
+        font-size: 15px;
+        margin: 0;
+        color: #ffd700;
+    }
+    
+    /* .hero-content p {
+        font-size: 9px;
+        margin-top: 5px;
+    } */
+    
+    .hero-button {
+        background-color: #ffd700;
+        color: black;
+        padding: 15px 30px;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 18px;
+        margin-top: 20px;
+    }
+    
+    .hero-timer{
+        padding: none;
+    }
+
+    .timer-box h3 {
+        font-size: 15px;
+        margin-bottom: 5px;
+    }
+    .timer-box {
+      margin: 0;
+      /* border: 1px solid white; */
+     
+    }
+    
+
+    
+    .timer .time {
+        background-color: white;
+        color: black;
+        padding: 5px;
+        border-radius: 10px;
+        text-align: center;
+        font-size: 15px;
+        margin: auto;
+    }
+    
+    .timer .time span {
+        display: block;
+        font-size: 10px;
+        color: #333;
+    }
+    
+    .presale-info,
+    .sol-amount,
+    .bart-token {
+      
+        font-size: 15px;
+        color: white;
+       
+    }
+    
+    .sol-amount input {
+        width: auto;
+        padding: 5px;
+      
+        border-radius: 5px;
+        border: none;
+    }
+
+
+    .the-bart,
+.about,
+.tokenomics {
+    padding: 20px 10px;
+    text-align: center;
+    background-color: #00bfff;
+    color: white;
+}
+
+.the-bart h2,
+.about h2,
+.tokenomics h2 {
+    font-size: 18px;
+   
+}
+
+.learn-more {
+    background-color: white;
+    color: #00aaff;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 18px;
+   
+}
+
+.learn-more:hover {
+    background-color: #e6f7ff;
+}
+
+.token-chart img {
+    max-width: 100%;
+    height: auto;
+}
+
+.token-distribution {
+    list-style-type: none;
+    padding: 0;
+    margin-top: 20px;
+    color: white;
+}
+
+.token-distribution li {
+    margin: 5px 0;
+    font-size: 18px;
+}
+
+
+    
+}
+
+
+@media (max-width:400px) 
+{
+    .navbar-center li{
+
+        margin: 0 7px;
+    }
+    
+    .navbar-center li a{
+    font-size: 13px;
+    }
+    
+    .buy-now{
+        font-size: 13px;
+        padding: 6px 8px;
+    } 
+
+    .hero{
+        padding: 30px 10px ;
+        
+    }
+    .hero-content h1 {
+        font-size: 20px;
+        margin: 0;
+    }
+    
+    .hero-content{
+        margin: auto;
+    }
+    
+    .hero-content h2 {
+        font-size: 13px;
+        margin: 0;
+        color: #ffd700;
+    }
+    
+    /* .hero-content p {
+        font-size: 9px;
+        margin-top: 5px;
+    } */
+    
+    .hero-button {
+        background-color: #ffd700;
+        color: black;
+        padding: 15px 30px;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 13px;
+        margin-top: 20px;
+    }
+
+    .timer-box h3 {
+        font-size: 13px;
+       
+    }
+    .timer-box {
+      margin: 0;
+      /* border: 1px solid white; */
+     
+    }
+    
+
+    
+    .timer .time {
+        background-color: white;
+        color: black;
+        padding: 5px;
+        border-radius: 10px;
+        text-align: center;
+        font-size: 13px;
+        margin: auto;
+    }
+    
+    .timer .time span {
+        display: block;
+        font-size: 10px;
+        color: #333;
+    }
+
+    .presale-info,
+    .sol-amount,
+    .bart-token {
+      
+        font-size: 13px;
+        color: white;
+       
+    }
+    
+    .sol-amount input {
+        width: auto;
+        padding: 5px;
+      
+        border-radius: 5px;
+        border: none;
+    }
+
+
+    .the-bart,
+.about,
+.tokenomics {
+    padding: 20px 10px;
+    text-align: center;
+    background-color: #00bfff;
+    color: white;
+}
+
+.the-bart h2,
+.about h2,
+.tokenomics h2 {
+    font-size: 13px;
+   
+}
+
+.learn-more {
+    background-color: white;
+    color: #00aaff;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 13px;
+   
+}
+
+.learn-more:hover {
+    background-color: #e6f7ff;
+}
+
+.token-chart img {
+    max-width: 100%;
+    height: auto;
+}
+
+.token-distribution {
+    list-style-type: none;
+    padding: 0;
+    margin-top: 20px;
+    color: white;
+}
+
+.token-distribution li {
+    margin: 5px 0;
+    font-size: 13px;
+}
+
+
+}

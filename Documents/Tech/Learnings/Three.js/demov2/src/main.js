@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 // Get DOM elemen
 // Setup Renderer
@@ -42,6 +43,59 @@ mainMenuScene.add(directionalLight);
 mainMenuScene.add(light);
 gameScene.add(light.clone()); // Add light to the game scene
 
+
+
+
+
+
+
+const loadingManager = new THREE.LoadingManager();
+
+const textureLoader = new THREE.TextureLoader(loadingManager);
+const gltfLoader = new GLTFLoader(loadingManager);
+const dracoLoader = new DRACOLoader(loadingManager);
+const listener = new THREE.AudioListener();
+const backgroundMusic = new THREE.Audio(listener);
+
+const sound = new THREE.Audio(listener);
+const audioLoader = new THREE.AudioLoader(loadingManager);
+
+// Show loading screen while assets are loading
+loadingManager.onStart = () => {
+};
+
+// When all assets are loaded
+loadingManager.onLoad = () => {
+    console.log('All assets loaded');
+    const preloader = document.getElementById('preloader');
+    preloader.style.display = 'none'; // Hide preloader
+
+   
+};
+
+
+const progressBar = document.querySelector('#progress-bar');
+// Track loading progress
+loadingManager.onProgress = (url, itemsLoaded, itemsTotal) => {
+  if (progressBar) {
+    // console.log(`Loaded ${itemsLoaded} of ${itemsTotal} files: ${url}`);
+    const progress = (itemsLoaded / itemsTotal) * 100;
+  
+    document.getElementById('progress-bar').style.width = `${progress}%`;
+
+      progressBar.style.width = `${progress}%`; // Update the progress bar width
+    } else {
+      console.warn('Progress bar element is not found.');
+    }
+   
+};
+
+// Handle loading errors
+loadingManager.onError = (url) => {
+    // console.error(`There was an error loading ${url}`);
+};
+
+
 // Ground Plane (for Main Menu)
 // const groundGeo = new THREE.PlaneGeometry(50, 50);
 // const groundMat = new THREE.MeshStandardMaterial({ color: 0x555555 });
@@ -50,15 +104,19 @@ gameScene.add(light.clone()); // Add light to the game scene
 // mainMenuScene.add(ground);
 
 // Main Menu Model
-const loader = new GLTFLoader();
+
 let menuModel;
 let menuBG
-const textureLoader = new THREE.TextureLoader();
 
 
 let character, mixer, actions = {};
+dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/'); 
+// Attach DracoLoader to GLTFLoader
+gltfLoader.setDRACOLoader(dracoLoader);
 
-loader.load('runestone.glb', (gltf) => {
+
+
+gltfLoader.load('runestone.glb', (gltf) => {
   menuBG = gltf.scene;
   menuBG.scale.set(1,1,1
   );
@@ -66,7 +124,7 @@ loader.load('runestone.glb', (gltf) => {
   mainMenuScene.add(menuBG);
 });
 
-loader.load('avatarland.glb', (gltf) => {
+gltfLoader.load('avatarland.glb', (gltf) => {
   menuModel = gltf.scene;
   menuModel.scale.set(0.9, 0.9, 0.9);
   menuModel.position.set(0, 0.7, 3);
@@ -221,7 +279,7 @@ document.body.appendChild(startButton);
 
 
 
-loader.load('myavatar.glb', (gltf) => {
+gltfLoader.load('myavatar.glb', (gltf) => {
   character = gltf.scene;
   character.scale.set(1, 1, 1);
   character.position.set(0, 0, 0);
@@ -266,7 +324,7 @@ const groundWidth = 50;
 const groundLength = 50;
 const groundCount = 3; // Number of ground tiles
 const tileSpacing = groundLength;
-let speed = 0.6; 
+let speed = 0.7; 
 
 // Ground material
 const groundMaterial = new THREE.MeshStandardMaterial({
@@ -284,7 +342,7 @@ const tileGroups = [];
 let tilesReady = false; 
 
 function loadModel(path, callback) {
-  loader.load(
+  gltfLoader.load(
     path,
     (gltf) => {
       const model = gltf.scene;
@@ -436,12 +494,11 @@ const maxObstacles = 3; // Adjust as needed for performance
 const minZDistance = 50; // Adjust for gameplay difficulty
 
 // GLTF Loader
-const gltfLoader = new GLTFLoader();
 
 // List of models for obstacles
 const obstacleModels = [
   'royal_59_free__warhavoc_survival_car_pack.glb',
-  'plymouth_fury_1958_crazy_version_draft.glb',
+  // 'plymouth_fury_1958_crazy_version_draft.glb',
 
   // '2019_ford_gt_mkii_track.glb ',
   // '2018_nissan_leaf_nismo_rc_concept.glb',

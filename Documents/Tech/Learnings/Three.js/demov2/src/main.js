@@ -177,7 +177,6 @@ Object.assign(musicButton.style, {
   outline: 'none',
   transition: 'background-color 0.3s, color 0.3s', // Smooth transition
 });
-
 // Help Button
 const helpButton = document.createElement('button');
 helpButton.textContent = 'Help';
@@ -193,19 +192,76 @@ Object.assign(helpButton.style, {
   border: '2px solid white',
   color: 'white',
   borderRadius: '10px',
+  zIndex: 1000, // Ensure it's above other elements
 });
 document.body.appendChild(helpButton);
-// Create Modal Container
 
+// Modal Elements
+const modal = document.createElement('div');
+Object.assign(modal.style, {
+  position: 'fixed',
+  top: '50%',
+  left: '50%',
+  transform: 'translate(-50%, -50%) scale(0)',
+  padding: '20px',
+  width: '80%',
+  maxWidth: '400px',
+  background: '#333',
+  color: 'white',
+  borderRadius: '10px',
+  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+  textAlign: 'center',
+  transition: 'transform 0.3s ease',
+  zIndex: 1001, // Ensure it's above other elements
+});
+document.body.appendChild(modal);
+
+const modalTitle = document.createElement('h2');
+modalTitle.id = 'modal-title';
+Object.assign(modalTitle.style, {
+  marginBottom: '15px',
+  fontSize: '24px',
+});
+modal.appendChild(modalTitle);
+
+const modalContent = document.createElement('div');
+modalContent.id = 'modal-content';
+Object.assign(modalContent.style, {
+  fontSize: '16px',
+  lineHeight: '1.6',
+});
+modal.appendChild(modalContent);
+
+const closeButton = document.createElement('button');
+closeButton.textContent = 'Close';
+Object.assign(closeButton.style, {
+  marginTop: '20px',
+  padding: '10px 20px',
+  fontSize: '16px',
+  cursor: 'pointer',
+  background: '#555',
+  border: 'none',
+  color: 'white',
+  borderRadius: '5px',
+});
+modal.appendChild(closeButton);
+
+// Overlay
 const overlay = document.createElement('div');
-overlay.id = 'overlay';
+Object.assign(overlay.style, {
+  position: 'fixed',
+  top: 0,
+  left: 0,
+  width: '100%',
+  height: '100%',
+  background: 'rgba(0, 0, 0, 0.5)',
+  display: 'none',
+  zIndex: 1000, // Ensure it's behind the modal
+});
 document.body.appendChild(overlay);
 
-// // Show Modal Function
+// Show Modal Function
 function showModal(title, content) {
-  const modalTitle = document.getElementById('modal-title');
-  const modalContent = document.getElementById('modal-content');
-
   modalTitle.textContent = title;
   modalContent.innerHTML = content;
 
@@ -219,39 +275,61 @@ function hideModal() {
   overlay.style.display = 'none';
 }
 
-
-
-overlay.addEventListener('click', hideModal);
-
-
-
+// Event Listeners
 helpButton.addEventListener('click', () => {
   showModal(
     'Help',
     `
-      <p>Use arrow keys to move your character.</p>
-      <p>Collect coins to gain points.</p>
-      <p>Avoid obstacles to survive as long as possible.</p>
+      <p><strong>Welcome, survivor!</strong> Here's what you need to know:</p>
+      <ul style="text-align: left; margin: 10px 0 20px 0; padding-left: 20px;">
+        <li>Use <strong>arrow keys</strong> or the <strong>joystick</strong> to move your character.</li>
+        <li><strong>Collect coins</strong> to increase your value-don’t miss any!</li>
+        <li><strong>Avoid cars</strong> like your life depends on it—because it does.</li>
+        <li>Press <strong>Button A</strong> to activate your shield and gain power over the cars for a limited time.</li>
+        <li>Press <strong>Button B</strong> to disappear and reappear in a random safe spot.</li>
+      </ul>
+      <p>Whatever you do, stay alive! The longer you survive, the higher your score. Good luck!</p>
     `
   );
 });
+
+overlay.addEventListener('click', hideModal);
+closeButton.addEventListener('click', hideModal);
 
 // Close Modal Event Listener
 
 
 // Audio Setup
-const gameMusic = new Audio('drone-high-tension-and-suspense-background-162365.mp3'); // Replace with your music file path
-gameMusic.loop = true; // Loop the music for continuous play
-gameMusic.volume=0.3
+// const gameMusic = new Audio('action-loop-g-100-bpm-brvhrtz-226161.mp3'); // Replace with your music file path
+// gameMusic.loop = true; // Loop the music for continuous play
+// gameMusic.volume=0.15  
 // Music Toggle Functionality
 let isMusicPlaying = false;
 
+// Audio Setup
+const mainMenuMusic = new Audio('drone-high-tension-and-suspense-background-162365.mp3'); // Replace with your main menu music file path
+const gameSceneMusic = new Audio('adrenaline-roger-gabalda-main-version-02-23-11021.mp3'); // Replace with your game scene music file path
+
+// Music properties
+mainMenuMusic.loop = true;
+mainMenuMusic.volume = 0.15;
+
+gameSceneMusic.loop = true;
+gameSceneMusic.volume = 0.15;
+
+
 musicButton.addEventListener('click', () => {
   if (isMusicPlaying) {
-    gameMusic.pause();
+    mainMenuMusic.pause();
+    gameSceneMusic.pause();
     musicButton.textContent = 'Music: Off';
   } else {
-    gameMusic.play();
+    // Play the appropriate music for the current scene
+    if (currentScene === 'mainMenu') {
+      mainMenuMusic.play();
+    } else if (currentScene === 'gameScene') {
+      gameSceneMusic.play();
+    }
     musicButton.textContent = 'Music: On';
   }
   isMusicPlaying = !isMusicPlaying; // Toggle the music state
@@ -260,6 +338,22 @@ musicButton.addEventListener('click', () => {
 // Add the button to the DOM
 document.body.appendChild(musicButton);
 
+// Scene-Specific Music Management
+function updateMusic() {
+  if (!isMusicPlaying) return; // Skip if music is toggled off
+
+  if (currentScene === 'mainMenu') {
+    if (!mainMenuMusic.paused) return; // Avoid restarting the same music
+    gameSceneMusic.pause();
+    gameSceneMusic.currentTime = 0;
+    mainMenuMusic.play();
+  } else if (currentScene === 'gameScene') {
+    if (!gameSceneMusic.paused) return; // Avoid restarting the same music
+    mainMenuMusic.pause();
+    mainMenuMusic.currentTime = 0;
+    gameSceneMusic.play();
+  }
+}
 
 // Hover effect
 startButton.addEventListener('mouseenter', () => {
@@ -1350,13 +1444,14 @@ updatePlayer()
     controls.autoRotate=false;
     statsContainer.style.display = "block";
     camera.position.set(0, 2, 5);
-
+updateMusic()
     // Update game objects if needed
   }}
 
   else if (currentScene === 'mainMenu') {
     controls.enableRotate = true; 
-    // controls.autoRotate=true;
+     controls.autoRotate=true;
+     updateMusic()
     renderer.render(mainMenuScene, camera);
   }
 }

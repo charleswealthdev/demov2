@@ -1033,32 +1033,33 @@ function gamepad() {
     const button = document.createElement('button');
     button.style.width = '80px';
     button.style.height = '80px';
-    button.style.borderRadius = '50%';
+    button.style.borderRadius = '12px';  // Rounded corners
     button.style.border = 'none';
-    button.style.background = 'rgba(0, 0, 0, 0.15)';
+    button.style.background = 'rgba(255, 255, 255, 0.4)';  // Light white transparent background
     button.style.color = '#fff';
     button.style.fontSize = '24px';
     button.style.fontWeight = 'bold';
     button.style.cursor = 'pointer';
     button.style.transition = 'all 0.3s ease';
     button.style.position = 'relative';
-    button.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)';
+    button.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.2)'; // Subtle box shadow with soft edges
 
     button.innerHTML = label;
 
     button.addEventListener('mouseover', () => {
-      button.style.background = 'rgba(0, 0, 0, 0.3)';
-      button.style.transform = 'scale(1.1)';
+      button.style.background = 'rgba(255, 255, 255, 0.6)';  // Slightly darker on hover
+      button.style.transform = 'scale(1.05)';  // Slight scale-up on hover
     });
     button.addEventListener('mouseout', () => {
-      button.style.background = 'rgba(0, 0, 0, 0.15)';
-      button.style.transform = 'scale(1)';
+      button.style.background = 'rgba(255, 255, 255, 0.4)';  // Original transparent color
+      button.style.transform = 'scale(1)';  // Reset scale
     });
 
     button.addEventListener('click', action);
 
     return button;
   }
+
 
   // Create shield button (A button)
   shieldButton = createGamepadButton('A', activateShield);
@@ -1076,7 +1077,7 @@ function gamepad() {
   shieldCountBadge.style.right = '10px';
   shieldCountBadge.style.backgroundColor = '#ff6347';
   shieldCountBadge.style.color = '#fff';
-  shieldCountBadge.style.fontSize = '12px';
+  shieldCountBadge.style.fontSize = '5px';
   shieldCountBadge.style.padding = '5px';
   shieldCountBadge.style.borderRadius = '50%';
   shieldCountBadge.innerHTML = collectedShields;
@@ -1088,7 +1089,7 @@ function gamepad() {
   positionCountBadge.style.right = '10px';
   positionCountBadge.style.backgroundColor = '#ff6347';
   positionCountBadge.style.color = '#fff';
-  positionCountBadge.style.fontSize = '12px';
+  positionCountBadge.style.fontSize = '5px';
   positionCountBadge.style.padding = '5px';
   positionCountBadge.style.borderRadius = '50%';
   positionCountBadge.innerHTML = collectedPositions;

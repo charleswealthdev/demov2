@@ -813,7 +813,7 @@ function updateScoreDisplay() {
   distanceElement.innerHTML = `🚀 Distance: ${Math.floor(distanceTraveled)}m`;
 }
 // Game Over container
-// Game Over container
+// Game Over container// Game Over container
 const gameOverContainer = document.createElement("div");
 gameOverContainer.style.position = "fixed";
 gameOverContainer.style.top = "0";
@@ -843,6 +843,16 @@ gameOverMessage.style.color = "#ff4c4c"; // Bright red
 gameOverMessage.style.textShadow = "0 0 15px rgba(255, 76, 76, 0.8)";
 gameOverMessage.style.marginBottom = "30px";
 gameOverContainer.appendChild(gameOverMessage);
+
+// Motivational message
+const motivationalMessage = document.createElement("div");
+motivationalMessage.innerHTML = "Don't be lazy, get up and try again! Prove you can beat the odds!";
+motivationalMessage.style.fontSize = "1.5rem";
+motivationalMessage.style.fontWeight = "600";
+motivationalMessage.style.color = "#ffd700"; // Gold color for emphasis
+motivationalMessage.style.textShadow = "0 0 10px rgba(255, 215, 0, 0.8)";
+motivationalMessage.style.marginBottom = "20px";
+gameOverContainer.appendChild(motivationalMessage);
 
 // Summary container
 const summaryContainer = document.createElement("div");
@@ -903,8 +913,6 @@ restartButton.addEventListener("mouseleave", () => {
 });
 restartButton.addEventListener("click", restartGame);
 gameOverContainer.appendChild(restartButton);
-
-// Function to show Game Over screen
 
 
 // Function to trigger game over

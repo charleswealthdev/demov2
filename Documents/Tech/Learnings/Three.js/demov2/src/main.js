@@ -476,6 +476,7 @@ function switchToGameScene() {
   clock.start();
   console.log('Switched to Game Scene');
   setupJoystick()
+  gamepad()
 }
 
 startButton.addEventListener('click', () => {
@@ -630,6 +631,7 @@ function updateObstacles() {
         console.log('Shield protected the player from collision!');
         resetObstacle(obstacle); // Reset obstacle without penalty
         explodeSound.play()
+  
 
       } else {
         console.log('Collision detected! Game Over.');
@@ -868,7 +870,8 @@ function restartGame() {
 // Power-Up Models
 const powerUpModels = [
   { name: 'shield', model: 'medieval_wood_heater_shield.glb' },
-  { name: 'bitcoin', model: 'realistic_3d_bitcoin_model__crypto_asset.glb' }
+  { name: 'bitcoin', model: 'realistic_3d_bitcoin_model__crypto_asset.glb' },
+  { name: 'changeposition', model: 'potion_for_media__motion.glb' }
 ];
 
 // GLTF Loader
@@ -932,23 +935,43 @@ function updatePowerUps() {
 // Trigger Power-Up Effect
 function triggerPowerUpEffect(type) {
   if(type === 'shield') {
-    activateShield();
+    collectShield()
+    
+    // activateShield();
   } else if (type === 'bitcoin') {
     rewardBitcoin();
   }
+
+  else if (type === 'changeposition') {
+   changecharacterPosition()
+  }
 }
 
+
+function changecharacterPosition(){
+  collectedPositions++;
+  updatePositionButton()
+  }
+const defaultSpeed=0.7
+const speedboost= 2;
 // Shield Effect
 function activateShield() {
-  if (isShieldActive) return;
+  if (isShieldActive || collectedShields <= 0) return;
 powerUpActiveSound.play()
+
   console.log('Shield activated!');
   isShieldActive = true;
+  speed +=speedboost
+  collectedShields -= 1; // Deduct a shield
+  character.scale.set(1.5,1.5,1.5)
+  updateShieldButton(); // Update button display
 
   // Temporary invulnerability
   shieldTimer = setTimeout(() => {
     console.log('Shield deactivated!');
     isShieldActive = false;
+    speed=defaultSpeed
+    character.scale.set(1,1,1)
   }, 5000); // Shield lasts for 5 seconds
 }
 
@@ -988,6 +1011,138 @@ function resetScore() {
 }
 
 
+let collectedPositions = 0; // Track position-changing items collected
+let collectedShields = 0; // Track shields collected
+let shieldButton, positionButton;
+
+
+// Gamepad creation and button styling
+function gamepad() {
+  const gamepadContainer = document.createElement('div');
+  gamepadContainer.style.position = 'absolute';
+  gamepadContainer.style.bottom = '20px';
+  gamepadContainer.style.right = '20px';
+  gamepadContainer.style.display = 'flex';
+  gamepadContainer.style.flexDirection = 'column';
+  gamepadContainer.style.alignItems = 'center';
+  gamepadContainer.style.justifyContent = 'center';
+  gamepadContainer.style.gap = '20px';
+  gamepadContainer.style.zIndex = '1000';
+
+  function createGamepadButton(label, action) {
+    const button = document.createElement('button');
+    button.style.width = '80px';
+    button.style.height = '80px';
+    button.style.borderRadius = '50%';
+    button.style.border = 'none';
+    button.style.background = 'rgba(0, 0, 0, 0.15)';
+    button.style.color = '#fff';
+    button.style.fontSize = '24px';
+    button.style.fontWeight = 'bold';
+    button.style.cursor = 'pointer';
+    button.style.transition = 'all 0.3s ease';
+    button.style.position = 'relative';
+    button.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)';
+
+    button.innerHTML = label;
+
+    button.addEventListener('mouseover', () => {
+      button.style.background = 'rgba(0, 0, 0, 0.3)';
+      button.style.transform = 'scale(1.1)';
+    });
+    button.addEventListener('mouseout', () => {
+      button.style.background = 'rgba(0, 0, 0, 0.15)';
+      button.style.transform = 'scale(1)';
+    });
+
+    button.addEventListener('click', action);
+
+    return button;
+  }
+
+  // Create shield button (A button)
+  shieldButton = createGamepadButton('A', activateShield);
+  gamepadContainer.appendChild(shieldButton);
+
+  // Create position change button (B button)
+  positionButton = createGamepadButton('B', changePosition);
+  gamepadContainer.appendChild(positionButton);
+
+  document.body.appendChild(gamepadContainer);
+
+  const shieldCountBadge = document.createElement('span');
+  shieldCountBadge.style.position = 'absolute';
+  shieldCountBadge.style.top = '10px';
+  shieldCountBadge.style.right = '10px';
+  shieldCountBadge.style.backgroundColor = '#ff6347';
+  shieldCountBadge.style.color = '#fff';
+  shieldCountBadge.style.fontSize = '12px';
+  shieldCountBadge.style.padding = '5px';
+  shieldCountBadge.style.borderRadius = '50%';
+  shieldCountBadge.innerHTML = collectedShields;
+  shieldButton.appendChild(shieldCountBadge);
+
+  const positionCountBadge = document.createElement('span');
+  positionCountBadge.style.position = 'absolute';
+  positionCountBadge.style.top = '10px';
+  positionCountBadge.style.right = '10px';
+  positionCountBadge.style.backgroundColor = '#ff6347';
+  positionCountBadge.style.color = '#fff';
+  positionCountBadge.style.fontSize = '12px';
+  positionCountBadge.style.padding = '5px';
+  positionCountBadge.style.borderRadius = '50%';
+  positionCountBadge.innerHTML = collectedPositions;
+  positionButton.appendChild(positionCountBadge);
+}
+
+// Update position button to show current position item count and enable/disable button
+function updatePositionButton() {
+  positionButton.innerHTML = `B ${collectedPositions}`; // Show position item count
+  positionButton.disabled = collectedPositions === 0; // Disable if no position items
+}
+
+// Update shield button to show current count and enable/disable button
+function updateShieldButton() {
+  shieldButton.innerHTML = `A ${collectedShields}`; // Show shield count
+  shieldButton.disabled = collectedShields === 0; // Disable if no shields
+}
+// Function to change character position (random left/right movement with boundary limits)
+function changePosition() {
+  if (collectedPositions <= 0) {
+    console.log('No position-changing items available!');
+    return; // No position-changing item available
+  }
+
+  updatePositionButton(); // Update position button after changing position
+
+  // Randomly decide if the character should move left or right
+  const randomMove = Math.random() < 0.5 ? -5 : 5; // Random movement of -5 or 5 on x-axis for smoother movement
+
+  // Calculate new position X based on random movement
+  const newPositionX = character.position.x + randomMove;
+
+  // Ensure the new position is within the valid bounds
+  const halfGroundWidth = groundWidth / 2; // Since groundWidth is 50, halfGroundWidth will be 25
+
+  console.log(`Attempting to move character. New Position X: ${newPositionX}`);
+
+  // Check if the new position is within the valid bounds
+  if (newPositionX >= -halfGroundWidth && newPositionX <= halfGroundWidth) {
+    character.position.x = newPositionX; // Move character if within bounds
+    collectedPositions -= 1; // Deduct one position item
+    updatePositionButton()
+    console.log(`Character moved to position X: ${character.position.x}`);
+  } else {
+    console.log('Character movement out of bounds, no change made.');
+  }
+}
+
+
+// Function to simulate collecting a shield
+function collectShield() {
+  collectedShields += 1; // Add one shield when collected
+  updateShieldButton();  // Update button to reflect new shield count
+}
 
 function setupJoystick() {
   // Create joystick container (rectangle with rounded edges)

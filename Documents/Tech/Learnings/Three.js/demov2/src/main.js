@@ -1033,7 +1033,7 @@ function gamepad() {
     const button = document.createElement('button');
     button.style.width = '50px';
     button.style.height = '50px';
-    button.style.borderRadius = '20px';  // Rounded corners
+    button.style.borderRadius = '50%';  // Rounded corners
     button.style.border = 'none';
     button.style.background = 'rgba(255, 255, 255, 0.4)';  // Light white transparent background
     button.style.color = '#fff';
@@ -1151,8 +1151,8 @@ function setupJoystick() {
   Object.assign(joystick.style, {
     position: "absolute",
     bottom: "5%",
-    left: "5%",
-    width: "300px",
+    left: "3%",
+    width: "250px",
     height: "60px",
     borderRadius: "30px", // Rounded edges
     background: "rgba(0, 0, 0, 0.5)",
@@ -1166,8 +1166,8 @@ function setupJoystick() {
   // Create joystick handle (round, centered in the container)
   const handle = document.createElement("div");
   Object.assign(handle.style, {
-    width: "50px",
-    height: "50px",
+    width: "60px",
+    height: "60px",
     borderRadius: "50%", // Circular handle
     background: "rgba(255, 255, 255, 0.8)",
     touchAction: "none", // Prevent touch defaults
@@ -1356,7 +1356,7 @@ updatePlayer()
 
   else if (currentScene === 'mainMenu') {
     controls.enableRotate = true; 
-    controls.autoRotate=true;
+    // controls.autoRotate=true;
     renderer.render(mainMenuScene, camera);
   }
 }

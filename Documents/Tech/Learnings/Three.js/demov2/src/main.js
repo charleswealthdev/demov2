@@ -1031,13 +1031,13 @@ function gamepad() {
 
   function createGamepadButton(label, action) {
     const button = document.createElement('button');
-    button.style.width = '80px';
-    button.style.height = '80px';
-    button.style.borderRadius = '12px';  // Rounded corners
+    button.style.width = '50px';
+    button.style.height = '50px';
+    button.style.borderRadius = '20px';  // Rounded corners
     button.style.border = 'none';
     button.style.background = 'rgba(255, 255, 255, 0.4)';  // Light white transparent background
     button.style.color = '#fff';
-    button.style.fontSize = '24px';
+    button.style.fontSize = '20px';
     button.style.fontWeight = 'bold';
     button.style.cursor = 'pointer';
     button.style.transition = 'all 0.3s ease';
@@ -1152,7 +1152,7 @@ function setupJoystick() {
     position: "absolute",
     bottom: "5%",
     left: "5%",
-    width: "250px",
+    width: "300px",
     height: "60px",
     borderRadius: "30px", // Rounded edges
     background: "rgba(0, 0, 0, 0.5)",
@@ -1175,69 +1175,91 @@ function setupJoystick() {
     transform: "translate(0, 0)",
   });
   joystick.appendChild(handle);
+// State variables for dragging
+let isDragging = false;
+let initialTouch = null;
 
-  // State variables for dragging
-  let isDragging = false;
-  let initialTouch = null;
+const movementSpeed = 0.15; // Speed of player movement
+const deadZone = 7; // Ignore small movements near the center
+let joystickRadius = 50; // Default joystick radius
 
-  const movementSpeed = 0.15; // Speed of player movement
-  const deadZone = 7; // Ignore small movements near the center
+// Adjust joystick radius and related scaling dynamically
+function adjustJoystickRadius() {
+  const screenWidth = window.innerWidth;
+  const screenHeight = window.innerHeight;
 
-  // Handle touch start
-  joystick.addEventListener("touchstart", (e) => {
-    isDragging = true;
-    initialTouch = e.touches[0];
-  });
+  // Dynamically scale joystick radius (adjust as necessary)
+  joystickRadius = Math.min(screenWidth, screenHeight) * 0.15; // Use 15% of the smallest screen dimension
+}
 
-  // Handle touch move
-  joystick.addEventListener("touchmove", (e) => {
-    if (isDragging && initialTouch) {
-      const rect = joystick.getBoundingClientRect();
-      const centerX = rect.left + rect.width / 2;
+// Adjust joystick handle size on window resize
+window.addEventListener("resize", adjustJoystickRadius);
 
-      // Calculate horizontal movement (X-axis only)
-      const deltaX = e.touches[0].clientX - centerX;
+// Handle touch start
+joystick.addEventListener("touchstart", (e) => {
+  isDragging = true;
+  initialTouch = e.touches[0];
+});
 
-      // Ignore small movements in the dead zone
-      if (Math.abs(deltaX) > deadZone) {
-        const normalizedX = Math.min(Math.max(deltaX / (rect.width / 2), -1), 1); // Normalize between -1 and 1
+// Handle touch move
+joystick.addEventListener("touchmove", (e) => {
+  if (isDragging && initialTouch) {
+    const rect = joystick.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
 
-        // Move player within camera bounds
-        const { left, right } = calculateCameraBounds();
-        character.position.x = Math.min(Math.max(character.position.x + normalizedX * movementSpeed, left), right);
+    // Calculate horizontal movement
+    let deltaX = e.touches[0].clientX - centerX;
 
-        // Update joystick handle position within bounds
-        const handleOffsetX = Math.min(
-          Math.max(deltaX, -rect.width / 2 + handle.offsetWidth / 2),
-          rect.width / 2 - handle.offsetWidth / 2
-        );
-        handle.style.transform = `translate(${handleOffsetX}px, 0)`; // Horizontal movement only
-      }
+    // Restrict movement within joystick radius
+    const distance = Math.abs(deltaX);
+    if (distance > joystickRadius) {
+      deltaX = Math.sign(deltaX) * joystickRadius; // Clamp to joystick radius
     }
-  });
 
-  // Handle touch end
-  joystick.addEventListener("touchend", () => {
-    isDragging = false;
-    initialTouch = null;
+    // Ignore small movements in the dead zone
+    if (Math.abs(deltaX) > deadZone) {
+      const normalizedX = deltaX / joystickRadius; // Normalize between -1 and 1
 
-    // Reset joystick handle position
-    handle.style.transform = "translate(0, 0)";
-  });
+      // Move player within camera bounds
+      const { left, right } = calculateCameraBounds();
+      character.position.x = Math.min(Math.max(character.position.x + normalizedX * movementSpeed, left), right);
 
-  // Calculate camera bounds dynamically
-  function calculateCameraBounds() {
-    const aspect = window.innerWidth / window.innerHeight;
-    const distance = camera.position.z - character.position.z; // Distance between camera and player
-    const verticalFOV = THREE.MathUtils.degToRad(camera.fov); // Convert FOV from degrees to radians
-    const halfHeight = Math.tan(verticalFOV / 2) * distance;
-    const halfWidth = halfHeight * aspect;
-
-    return {
-      left: -halfWidth + 0.5, // Add padding to avoid clipping
-      right: halfWidth - 0.5, // Add padding to avoid clipping
-    };
+      // Update joystick handle position within bounds
+      const handleOffsetX = Math.min(
+        Math.max(deltaX, -joystickRadius + handle.offsetWidth / 2),
+        joystickRadius - handle.offsetWidth / 2
+      );
+      handle.style.transform = `translate(${handleOffsetX}px, 0)`; // Horizontal movement only
+    }
   }
+});
+
+// Handle touch end
+joystick.addEventListener("touchend", () => {
+  isDragging = false;
+  initialTouch = null;
+
+  // Reset joystick handle position
+  handle.style.transform = "translate(0, 0)";
+});
+
+// Calculate camera bounds dynamically
+function calculateCameraBounds() {
+  const aspect = window.innerWidth / window.innerHeight;
+  const distance = camera.position.z - character.position.z; // Distance between camera and player
+  const verticalFOV = THREE.MathUtils.degToRad(camera.fov); // Convert FOV from degrees to radians
+  const halfHeight = Math.tan(verticalFOV / 2) * distance;
+  const halfWidth = halfHeight * aspect;
+
+  return {
+    left: -halfWidth + 0.5, // Add padding to avoid clipping
+    right: halfWidth - 0.5, // Add padding to avoid clipping
+  };
+}
+
+// Call adjustJoystickRadius on initial load
+adjustJoystickRadius();
 }
 
 

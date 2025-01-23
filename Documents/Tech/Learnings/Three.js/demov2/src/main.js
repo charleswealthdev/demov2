@@ -375,7 +375,7 @@ document.body.appendChild(startButton);
 
 gltfLoader.load('myavatar.glb', (gltf) => {
   character = gltf.scene;
-  character.scale.set(1, 1, 1);
+  character.scale.set(1.4, 1.4, 1.4);
   character.position.set(0, 0, 0);
   character.rotation.y = Math.PI;
   gameScene.add(character);
@@ -418,8 +418,7 @@ const groundWidth = 50;
 const groundLength = 50;
 const groundCount = 3; // Number of ground tiles
 const tileSpacing = groundLength;
-let speed = 0.7; 
-
+let speed = 0.5
 // Ground material
 const groundMaterial = new THREE.MeshStandardMaterial({
   map: textureTest,
@@ -616,7 +615,7 @@ function createObstacles() {
       const model = gltf.scene;
 
       // Scale and position adjustments
-      model.scale.set(0.8, 0.8, 0.8);
+      model.scale.set(1.4, 1.4, 1.4);
       model.position.set(
         Math.random() * 10 - 5, // Random x position
         0.5, // y position based on model size
@@ -1054,7 +1053,7 @@ function changecharacterPosition(){
   collectedPositions++;
   updatePositionButton()
   }
-const defaultSpeed=0.7
+const defaultSpeed=0.8
 const speedboost= 2;
 // Shield Effect
 function activateShield() {
@@ -1073,7 +1072,7 @@ powerUpActiveSound.play()
     console.log('Shield deactivated!');
     isShieldActive = false;
     speed=defaultSpeed
-    character.scale.set(1,1,1)
+    character.scale.set(1.4,1.4,1.4)
   }, 5000); // Shield lasts for 5 seconds
 }
 
@@ -1164,11 +1163,11 @@ function gamepad() {
 
 
   // Create shield button (A button)
-  shieldButton = createGamepadButton('A', activateShield);
+  shieldButton = createGamepadButton('X', activateShield);
   gamepadContainer.appendChild(shieldButton);
 
   // Create position change button (B button)
-  positionButton = createGamepadButton('B', changePosition);
+  positionButton = createGamepadButton('O', changePosition);
   gamepadContainer.appendChild(positionButton);
 
   document.body.appendChild(gamepadContainer);
@@ -1200,15 +1199,21 @@ function gamepad() {
 
 // Update position button to show current position item count and enable/disable button
 function updatePositionButton() {
-  positionButton.innerHTML = `B ${collectedPositions}`; // Show position item count
+  positionButton.innerHTML = `O <span style="font-size:7px;">${collectedPositions}</span>`; // Update with smaller font size // Show position item count
   positionButton.disabled = collectedPositions === 0; // Disable if no position items
+
+  // Adjust opacity
+  positionButton.style.opacity = collectedPositions === 0 ? '0.2' : '1'; // Fade if 0
 }
 
-// Update shield button to show current count and enable/disable button
 function updateShieldButton() {
-  shieldButton.innerHTML = `A ${collectedShields}`; // Show shield count
+  shieldButton.innerHTML = `X <span style="font-size:7px;">${collectedShields}</span>`; // Show shield count
   shieldButton.disabled = collectedShields === 0; // Disable if no shields
+
+  // Adjust opacity
+  shieldButton.style.opacity = collectedShields === 0 ? '0.2' : '1'; // Fade if 0
 }
+
 // Function to change character position (random left/right movement with boundary limits)
 function changePosition() {
   if (collectedPositions <= 0) {
@@ -1281,9 +1286,9 @@ function setupJoystick() {
 let isDragging = false;
 let initialTouch = null;
 
-const movementSpeed = 0.15; // Speed of player movement
+const movementSpeed = 0.25; // Speed of player movement
 const deadZone = 7; // Ignore small movements near the center
-let joystickRadius = 50; // Default joystick radius
+let joystickRadius = 30; // Default joystick radius
 
 // Adjust joystick radius and related scaling dynamically
 function adjustJoystickRadius() {
@@ -1355,14 +1360,16 @@ function calculateCameraBounds() {
   const halfWidth = halfHeight * aspect;
 
   return {
-    left: -halfWidth + 0.5, // Add padding to avoid clipping
-    right: halfWidth - 0.5, // Add padding to avoid clipping
+    left: -halfWidth + 0.1, // Add padding to avoid clipping
+    right: halfWidth - 0.1, // Add padding to avoid clipping
   };
 }
+
 
 // Call adjustJoystickRadius on initial load
 adjustJoystickRadius();
 }
+
 
 
 let moveLeft = false
@@ -1374,6 +1381,15 @@ if(event.key ==='ArrowLeft')
 moveLeft=true;
 if(event.key ==='ArrowRight')
 moveRight=true;
+
+if (event.key.toLowerCase() === 'p') {
+  changePosition(); // Call the changePosition function
+}
+
+
+if (event.key.toLowerCase() === 's') {
+  activateShield()
+}
 });
 
 window.addEventListener('keyup', (event) =>{
@@ -1389,10 +1405,10 @@ window.addEventListener('keyup', (event) =>{
        // Update player movement
        function updatePlayer() {
         if (moveLeft && character.position.x > -5) {
-          character.position.x -= 0.2;
+          character.position.x -= 0.34;
         }
         if (moveRight && character.position.x < 5) {
-          character.position.x += 0.2;
+          character.position.x += 0.34;
         }
        }
 
@@ -1451,7 +1467,7 @@ updatePlayer()
     controls.enableRotate = false; 
     controls.autoRotate=false;
     statsContainer.style.display = "block";
-    camera.position.set(0, 2, 5);
+    camera.position.set(0, 3.4, 8.5);
 updateMusic()
     // Update game objects if needed
   }}

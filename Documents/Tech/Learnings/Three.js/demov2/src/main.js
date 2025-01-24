@@ -419,6 +419,9 @@ const groundLength = 50;
 const groundCount = 3; // Number of ground tiles
 const tileSpacing = groundLength;
 let speed = 0.5
+const speedIncrement = 0.1; // Increment for difficulty
+const maxGameSpeed = 1.5; // Maximum speed for the game
+const milestoneDistance = 1000;
 // Ground material
 const groundMaterial = new THREE.MeshStandardMaterial({
   map: textureTest,
@@ -582,10 +585,10 @@ startButton.addEventListener('click', () => {
 const obstacles = [];
 
 // Maximum number of active obstacles
-const maxObstacles = 3; // Adjust as needed for performance
+const maxObstacles = 1; // Adjust as needed for performance
 
 // Minimum distance between obstacles on the z-axis
-const minZDistance = 50; // Adjust for gameplay difficulty
+const minZDistance = 40; // Adjust for gameplay difficulty
 
 // GLTF Loader
 
@@ -767,6 +770,85 @@ let shieldTimer = null; // Timer for shield effect duration
 let distanceTraveled = 0; // Distance traveled by the player
 const pointsPerCollectible = 10; // Points awarded per collectible
 const pointsPerDistance = 1; // Points awarded per distance unit
+// Notification messages for each milestone range
+const notifications = {
+  low: [
+    "Things are about to heat up!",
+    "Can you handle this?",
+    "It's getting serious now!",
+  ],
+  medium: [
+    "You're doing great—keep it up!",
+    "Don't lose focus now!",
+    "The challenge is rising!",
+  ],
+  high: [
+    "Only the best can survive this!",
+    "Stay sharp—it’s brutal now!",
+    "You're in elite territory!",
+  ],
+};
+
+// Function to pick a random notification
+function getRandomNotification(range) {
+  const messages = notifications[range];
+  return messages[Math.floor(Math.random() * messages.length)];
+}
+
+// Notify player about difficulty increase
+function notifyDifficultyIncrease(milestoneRange) {
+  const notificationText = getRandomNotification(milestoneRange);
+
+  const notification = document.createElement('div');
+  notification.textContent = notificationText;
+  notification.style.cssText = `
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 10px 20px;
+    font-size: 16px;
+    border-radius: 5px;
+    z-index: 1000;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+    animation: fadeInOut 3s ease-in-out;
+  `;
+  document.body.appendChild(notification);
+
+  setTimeout(() => {
+    notification.remove();
+  }, 3000); // Remove after 3 seconds
+}
+
+// Function to adjust speed based on progress
+function adjustSpeedBasedOnProgress() {
+  const milestonePassed = Math.floor(distanceTraveled / milestoneDistance);
+
+  if (milestonePassed > 0 && speed < maxGameSpeed) {
+    const milestoneRange =
+      milestonePassed <= 3
+        ? "low"
+        : milestonePassed <= 6
+        ? "medium"
+        : "high";
+
+    // Check if we crossed a new milestone
+    if (Math.floor(distanceTraveled) % milestoneDistance === 0) {
+      speed = Math.min(speed + speedIncrement, maxGameSpeed);
+      console.log(`Game speed increased to: ${speed}`);
+      notifyDifficultyIncrease(milestoneRange);
+    }
+  }
+}
+
+// Game loop function to update distance
+function updateDistance(delta) {
+  distanceTraveled += speed * delta; // Update distance based on speed and delta time
+  adjustSpeedBasedOnProgress(); // Check and adjust speed based on progress
+}
+
 
 
 const powerUps = []; // Array to store active power-ups
@@ -936,7 +1018,7 @@ function restartGame() {
   score = 0;
   collectibleCount = 0;
   distanceTraveled = 0;
-
+  speed=speed
   // Reset player position
   character.position.set(0, 0, 0);
 
@@ -1462,12 +1544,14 @@ updatePowerUps()
 updateScoreDisplay()
 updateScore()
 updatePlayer()
+updateDistance(delta)
     if (currentScene === 'gameScene') {
     renderer.render(gameScene, camera);
     controls.enableRotate = false; 
     controls.autoRotate=false;
     statsContainer.style.display = "block";
-    camera.position.set(0, 3.4, 8.5);
+    camera.position.set(0, 3.6, 9);
+  
 updateMusic()
     // Update game objects if needed
   }}

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
-
+import gsap from 'gsap'; 
 // Get DOM elemen
 // Setup Renderer
 
@@ -664,7 +664,7 @@ function createObstacles() {
 
 
   // Load sounds
-  const explodeSound = new Audio("explosion-42132.mp3");
+  const explodeSound = new Audio("explosion-91872.mp3");
   const honkSound = new Audio("car-horn-beep-beep-two-beeps-honk-honk-6188.mp3");
   const honkLSound = new Audio("car-horn-1-189855.mp3");
   const collisionSound = new Audio("mixkit-car-window-breaking-1551.wav");
@@ -697,7 +697,6 @@ function detectCollisionwithCars(character, obstacles) {
   return playerBox.intersectsBox(obstacleBox); // Check for intersection
  
 }
-
 // Update obstacles and check for collisions
 function updateObstacles() {
   obstacles.forEach((obstacle, index) => {
@@ -726,9 +725,12 @@ function updateObstacles() {
       if (isShieldActive) {
         console.log('Shield protected the player from collision!');
         resetObstacle(obstacle); // Reset obstacle without penalty
-        explodeSound.play()
-  
+          score+=1000
+        // Play explosion sound for each obstacle
+        // explodeSound.play();
 
+        // Trigger the explosion visual effect for each obstacle
+        createExplosion(obstacle.position); // Position the explosion at the obstacle's location
       } else {
         console.log('Collision detected! Game Over.');
         onPlayerCollision(); // Handle collision without shield
@@ -736,6 +738,7 @@ function updateObstacles() {
     }
   });
 }
+
 
 // Function to handle collision effects
 function onPlayerCollision() {
@@ -770,6 +773,8 @@ let shieldTimer = null; // Timer for shield effect duration
 let distanceTraveled = 0; // Distance traveled by the player
 const pointsPerCollectible = 10; // Points awarded per collectible
 const pointsPerDistance = 1; // Points awarded per distance unit
+let shieldVisual = null; // Placeholder for shield visual
+let shieldSizeMultiplier = 1.7;
 // Notification messages for each milestone range
 const notifications = {
   low: [
@@ -927,7 +932,7 @@ gameOverContainer.appendChild(gameOverMessage);
 
 // Motivational message
 const motivationalMessage = document.createElement("div");
-motivationalMessage.innerHTML = "Don't be lazy, get up and try again! Prove you can beat the odds!";
+motivationalMessage.innerHTML = "Don't be lazy, get up and try again!";
 motivationalMessage.style.fontSize = "1.5rem";
 motivationalMessage.style.fontWeight = "600";
 motivationalMessage.style.color = "#ffd700"; // Gold color for emphasis
@@ -1137,24 +1142,139 @@ function changecharacterPosition(){
   }
 const defaultSpeed=0.8
 const speedboost= 2;
+let shieldMaterial;
+
+function createShieldVisual() {
+  // Calculate shield size based on character's size
+  const shieldSize = character.scale.x * shieldSizeMultiplier; // Adjust based on character's scale
+
+  // Create a semi-transparent sphere
+  const shieldGeometry = new THREE.SphereGeometry(shieldSize, 32, 32); // Higher segments for smoothness
+  shieldMaterial = new THREE.MeshBasicMaterial({
+    color: 0xddeeff, 
+    transparent: true,
+    opacity: 0.3, // Semi-transparent
+  });
+
+  const glowMaterial = new THREE.ShaderMaterial({
+    uniforms: {
+      viewVector: { type: "v3", value: camera.position },
+    },
+    vertexShader: `
+      varying vec3 vNormal;
+      void main() {
+        vNormal = normalize(normalMatrix * normal);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      varying vec3 vNormal;
+      void main() {
+        float intensity = pow(0.5 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
+      gl_FragColor = vec4(0.85, 0.92, 1.0, 0.3) * intensity;
+      }
+    `,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+  });
+  
+
+
+  // Create both meshes
+  const baseShield = new THREE.Mesh(shieldGeometry, shieldMaterial);
+  const glowShield = new THREE.Mesh(shieldGeometry, glowMaterial);
+
+  // Slightly scale the glow for a better visual effect
+  glowShield.scale.set(1.2, 1.2, 1.2);
+
+  // Group them together
+  const shieldGroup = new THREE.Group();
+  shieldGroup.add(baseShield);
+  shieldGroup.add(glowShield);
+
+  return shieldGroup;
+}
+
+
+// Function to create explosion effect
+function createExplosion(position) {
+  const explosionGeometry = new THREE.SphereGeometry(2, 32, 32);
+  const explosionMaterial = new THREE.MeshBasicMaterial({
+    color: 0xffaa00, // Orange explosion color
+    transparent: true,
+    opacity: 0.7,
+  });
+
+  const explosion = new THREE.Mesh(explosionGeometry, explosionMaterial);
+  explosion.position.copy(position);
+  explodeSound.play()
+  gameScene.add(explosion);
+
+  // Animate the explosion (grow and fade)
+  const duration = 500; // 500ms
+  const startTime = Date.now();
+
+  function animateExplosion() {
+    const elapsedTime = Date.now() - startTime;
+    const scale = 1 + (elapsedTime / duration) * 2; // Grow over time
+    explosion.scale.set(scale, scale, scale);
+    explosion.material.opacity = 1 - elapsedTime / duration; // Fade over time
+
+    if (elapsedTime < duration) {
+      requestAnimationFrame(animateExplosion);
+      
+    } else {
+      gameScene.remove(explosion); // Remove explosion after animation
+    }
+  }
+
+  animateExplosion();
+}
+
+
+
+
+function pulseShield() {
+  if (shieldVisual) {
+    const scaleFactor = 1.05; // Scale slightly larger
+    const duration = 0.8; // Seconds for each pulse
+
+    gsap.to(shieldVisual.scale, {
+      x: scaleFactor,
+      y: scaleFactor,
+      z: scaleFactor,
+      duration: duration / 2,
+      yoyo: true, // Reverse the animation
+      repeat: -1, // Infinite pulse
+      ease: "sine.inOut",
+    });
+  }
+}
+
+
 // Shield Effect
 function activateShield() {
   if (isShieldActive || collectedShields <= 0) return;
-powerUpActiveSound.play()
+// powerUpActiveSound.play()
 
   console.log('Shield activated!');
   isShieldActive = true;
-  speed +=speedboost
+  
+  // speed +=speedboost
   collectedShields -= 1; // Deduct a shield
-  character.scale.set(1.5,1.5,1.5)
   updateShieldButton(); // Update button display
+pulseShield()
+  shieldVisual = createShieldVisual();
+  shieldVisual.position.copy(character.position); // Align with the character
+  console.log('shield working')
+  gameScene.add(shieldVisual);
 
   // Temporary invulnerability
   shieldTimer = setTimeout(() => {
     console.log('Shield deactivated!');
     isShieldActive = false;
-    speed=defaultSpeed
-    character.scale.set(1.4,1.4,1.4)
+    // speed=defaultSpeed
+    gameScene.remove(shieldVisual);
   }, 5000); // Shield lasts for 5 seconds
 }
 
@@ -1321,6 +1441,9 @@ function changePosition() {
     character.position.x = newPositionX; // Move character if within bounds
     collectedPositions -= 1; // Deduct one position item
     updatePositionButton()
+    const moveSound = new Audio('movement-swipe-whoosh-1-186575.mp3'); // Replace with your sound file path
+    moveSound.volume = 0.5;
+    moveSound.play();
     console.log(`Character moved to position X: ${character.position.x}`);
   } else {
     console.log('Character movement out of bounds, no change made.');
@@ -1536,6 +1659,7 @@ function animate() {
  
   const delta = clock.getDelta();
    if (mixer) mixer.update(delta);
+
 
 
 updateGround()

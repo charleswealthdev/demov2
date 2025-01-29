@@ -379,7 +379,7 @@ gltfLoader.load('myavatar.glb', (gltf) => {
   character.position.set(0, 0, 0);
   character.rotation.y = Math.PI;
   gameScene.add(character);
-
+  updateModelSize();
   
     // Animation setup
     mixer = new THREE.AnimationMixer(character);
@@ -572,8 +572,10 @@ function switchToGameScene() {
   clock.start();
   console.log('Switched to Game Scene');
   // setupJoystick()
-  setupControl()
+  setupJoystick()
   gamepad()
+  updateCameraPosition()
+  updateModelSize()
 }
 
 startButton.addEventListener('click', () => {
@@ -641,6 +643,7 @@ function createObstacles() {
 
       // Store the obstacle
       obstacles.push(model);
+      updateModelSize();
 
 
   // Play honk sound if not on cooldown
@@ -1458,123 +1461,123 @@ function collectShield() {
   updateShieldButton();  // Update button to reflect new shield count
 }
 
-// function setupJoystick() {
-//   // Create joystick container (rectangle with rounded edges)
-//   const joystick = document.createElement("div");
-//   Object.assign(joystick.style, {
-//     position: "absolute",
-//     bottom: "5%",
-//     left: "3%",
-//     width: "250px",
-//     height: "60px",
-//     borderRadius: "30px", // Rounded edges
-//     background: "rgba(0, 0, 0, 0.5)",
-//     touchAction: "none", // Prevent default touch behaviors
-//     display: "flex",
-//     justifyContent: "center",
-//     alignItems: "center",
-//   });
-//   document.body.appendChild(joystick);
+function setupJoystick() {
+  // Create joystick container (rectangle with rounded edges)
+  const joystick = document.createElement("div");
+  Object.assign(joystick.style, {
+    position: "absolute",
+    bottom: "5%",
+    left: "3%",
+    width: "250px",
+    height: "60px",
+    borderRadius: "30px", // Rounded edges
+    background: "rgba(0, 0, 0, 0.5)",
+    touchAction: "none", // Prevent default touch behaviors
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+  });
+  document.body.appendChild(joystick);
 
-//   // Create joystick handle (round, centered in the container)
-//   const handle = document.createElement("div");
-//   Object.assign(handle.style, {
-//     width: "60px",
-//     height: "60px",
-//     borderRadius: "50%", // Circular handle
-//     background: "rgba(255, 255, 255, 0.8)",
-//     touchAction: "none", // Prevent touch defaults
-//     position: "absolute",
-//     transform: "translate(0, 0)",
-//   });
-//   joystick.appendChild(handle);
-// // State variables for dragging
-// let isDragging = false;
-// let initialTouch = null;
+  // Create joystick handle (round, centered in the container)
+  const handle = document.createElement("div");
+  Object.assign(handle.style, {
+    width: "60px",
+    height: "60px",
+    borderRadius: "50%", // Circular handle
+    background: "rgba(255, 255, 255, 0.8)",
+    touchAction: "none", // Prevent touch defaults
+    position: "absolute",
+    transform: "translate(0, 0)",
+  });
+  joystick.appendChild(handle);
+// State variables for dragging
+let isDragging = false;
+let initialTouch = null;
 
-// const movementSpeed = 0.25; // Speed of player movement
-// const deadZone = 7; // Ignore small movements near the center
-// let joystickRadius = 30; // Default joystick radius
+const movementSpeed = 0.25; // Speed of player movement
+const deadZone = 7; // Ignore small movements near the center
+let joystickRadius = 30; // Default joystick radius
 
-// // Adjust joystick radius and related scaling dynamically
-// function adjustJoystickRadius() {
-//   const screenWidth = window.innerWidth;
-//   const screenHeight = window.innerHeight;
+// Adjust joystick radius and related scaling dynamically
+function adjustJoystickRadius() {
+  const screenWidth = window.innerWidth;
+  const screenHeight = window.innerHeight;
 
-//   // Dynamically scale joystick radius (adjust as necessary)
-//   joystickRadius = Math.min(screenWidth, screenHeight) * 0.15; // Use 15% of the smallest screen dimension
-// }
+  // Dynamically scale joystick radius (adjust as necessary)
+  joystickRadius = Math.min(screenWidth, screenHeight) * 0.15; // Use 15% of the smallest screen dimension
+}
 
-// // Adjust joystick handle size on window resize
-// window.addEventListener("resize", adjustJoystickRadius);
+// Adjust joystick handle size on window resize
+window.addEventListener("resize", adjustJoystickRadius);
 
-// // Handle touch start
-// joystick.addEventListener("touchstart", (e) => {
-//   isDragging = true;
-//   initialTouch = e.touches[0];
-// });
+// Handle touch start
+joystick.addEventListener("touchstart", (e) => {
+  isDragging = true;
+  initialTouch = e.touches[0];
+});
 
-// // Handle touch move
-// joystick.addEventListener("touchmove", (e) => {
-//   if (isDragging && initialTouch) {
-//     const rect = joystick.getBoundingClientRect();
-//     const centerX = rect.left + rect.width / 2;
-//     const centerY = rect.top + rect.height / 2;
+// Handle touch move
+joystick.addEventListener("touchmove", (e) => {
+  if (isDragging && initialTouch) {
+    const rect = joystick.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
 
-//     // Calculate horizontal movement
-//     let deltaX = e.touches[0].clientX - centerX;
+    // Calculate horizontal movement
+    let deltaX = e.touches[0].clientX - centerX;
 
-//     // Restrict movement within joystick radius
-//     const distance = Math.abs(deltaX);
-//     if (distance > joystickRadius) {
-//       deltaX = Math.sign(deltaX) * joystickRadius; // Clamp to joystick radius
-//     }
+    // Restrict movement within joystick radius
+    const distance = Math.abs(deltaX);
+    if (distance > joystickRadius) {
+      deltaX = Math.sign(deltaX) * joystickRadius; // Clamp to joystick radius
+    }
 
-//     // Ignore small movements in the dead zone
-//     if (Math.abs(deltaX) > deadZone) {
-//       const normalizedX = deltaX / joystickRadius; // Normalize between -1 and 1
+    // Ignore small movements in the dead zone
+    if (Math.abs(deltaX) > deadZone) {
+      const normalizedX = deltaX / joystickRadius; // Normalize between -1 and 1
 
-//       // Move player within camera bounds
-//       const { left, right } = calculateCameraBounds();
-//       character.position.x = Math.min(Math.max(character.position.x + normalizedX * movementSpeed, left), right);
+      // Move player within camera bounds
+      const { left, right } = calculateCameraBounds();
+      character.position.x = Math.min(Math.max(character.position.x + normalizedX * movementSpeed, left), right);
 
-//       // Update joystick handle position within bounds
-//       const handleOffsetX = Math.min(
-//         Math.max(deltaX, -joystickRadius + handle.offsetWidth / 2),
-//         joystickRadius - handle.offsetWidth / 2
-//       );
-//       handle.style.transform = `translate(${handleOffsetX}px, 0)`; // Horizontal movement only
-//     }
-//   }
-// });
+      // Update joystick handle position within bounds
+      const handleOffsetX = Math.min(
+        Math.max(deltaX, -joystickRadius + handle.offsetWidth / 2),
+        joystickRadius - handle.offsetWidth / 2
+      );
+      handle.style.transform = `translate(${handleOffsetX}px, 0)`; // Horizontal movement only
+    }
+  }
+});
 
-// // Handle touch end
-// joystick.addEventListener("touchend", () => {
-//   isDragging = false;
-//   initialTouch = null;
+// Handle touch end
+joystick.addEventListener("touchend", () => {
+  isDragging = false;
+  initialTouch = null;
 
-//   // Reset joystick handle position
-//   handle.style.transform = "translate(0, 0)";
-// });
+  // Reset joystick handle position
+  handle.style.transform = "translate(0, 0)";
+});
 
-// // Calculate camera bounds dynamically
-// function calculateCameraBounds() {
-//   const aspect = window.innerWidth / window.innerHeight;
-//   const distance = camera.position.z - character.position.z; // Distance between camera and player
-//   const verticalFOV = THREE.MathUtils.degToRad(camera.fov); // Convert FOV from degrees to radians
-//   const halfHeight = Math.tan(verticalFOV / 2) * distance;
-//   const halfWidth = halfHeight * aspect;
+// Calculate camera bounds dynamically
+function calculateCameraBounds() {
+  const aspect = window.innerWidth / window.innerHeight;
+  const distance = camera.position.z - character.position.z; // Distance between camera and player
+  const verticalFOV = THREE.MathUtils.degToRad(camera.fov); // Convert FOV from degrees to radians
+  const halfHeight = Math.tan(verticalFOV / 2) * distance;
+  const halfWidth = halfHeight * aspect;
 
-//   return {
-//     left: -halfWidth + 0.1, // Add padding to avoid clipping
-//     right: halfWidth - 0.1, // Add padding to avoid clipping
-//   };
-// }
+  return {
+    left: -halfWidth + 0.1, // Add padding to avoid clipping
+    right: halfWidth - 0.1, // Add padding to avoid clipping
+  };
+}
 
 
-// // Call adjustJoystickRadius on initial load
-// adjustJoystickRadius();
-// }
+// Call adjustJoystickRadius on initial load
+adjustJoystickRadius();
+}
 
 
 
@@ -1619,78 +1622,108 @@ window.addEventListener('keyup', (event) =>{
        }
        
        
-       function setupControl(){
+//        function setupControl(){
 
-       // Create arrow button container
-const controlsContainer = document.createElement("div");
-controlsContainer.style.position = "fixed";
-controlsContainer.style.bottom = "50px";
-controlsContainer.style.left = "20%";
-controlsContainer.style.transform = "translateX(-50%)";
-controlsContainer.style.display = "flex";
-controlsContainer.style.gap = "30px";
-controlsContainer.style.zIndex = "100"; // Ensure it's above other elements
-document.body.appendChild(controlsContainer);
+//        // Create arrow button container
+// const controlsContainer = document.createElement("div");
+// controlsContainer.style.position = "fixed";
+// controlsContainer.style.bottom = "50px";
+// controlsContainer.style.left = "20%";
+// controlsContainer.style.transform = "translateX(-50%)";
+// controlsContainer.style.display = "flex";
+// controlsContainer.style.gap = "30px";
+// controlsContainer.style.zIndex = "100"; // Ensure it's above other elements
+// document.body.appendChild(controlsContainer);
 
-// Function to create button
-function createButton(emoji, direction) {
-  const button = document.createElement("button");
-  button.textContent = emoji;
-  button.style.width = "70px";
-  button.style.height = "70px";
-  button.style.fontSize = "40px";
-  button.style.border = "none";
-  button.style.backgroundColor = "rgba(0, 0, 0, 0.2)"; // Transparent background
-  button.style.color = "white";
-  button.style.borderRadius = "50%";
-  button.style.cursor = "pointer";
-  button.style.backdropFilter = "blur(10px)"; // Glass effect
-  button.style.transition = "0.2s ease";
+// // Function to create button
+// function createButton(emoji, direction) {
+//   const button = document.createElement("button");
+//   button.textContent = emoji;
+//   button.style.width = "70px";
+//   button.style.height = "70px";
+//   button.style.fontSize = "40px";
+//   button.style.border = "none";
+//   button.style.backgroundColor = "rgba(0, 0, 0, 0.2)"; // Transparent background
+//   button.style.color = "white";
+//   button.style.borderRadius = "50%";
+//   button.style.cursor = "pointer";
+//   button.style.backdropFilter = "blur(10px)"; // Glass effect
+//   button.style.transition = "0.2s ease";
   
-  // Button press effect
-  button.addEventListener("mousedown", () => {
-    button.style.backgroundColor = "rgba(255, 255, 255, 0.4)";
-    button.style.transform = "scale(0.9)";
-  });
-  button.addEventListener("mouseup", () => {
-    button.style.backgroundColor = "rgba(0, 0, 0, 0.2)";
-    button.style.transform = "scale(1)";
-  });
+//   // Button press effect
+//   button.addEventListener("mousedown", () => {
+//     button.style.backgroundColor = "rgba(255, 255, 255, 0.4)";
+//     button.style.transform = "scale(0.9)";
+//   });
+//   button.addEventListener("mouseup", () => {
+//     button.style.backgroundColor = "rgba(0, 0, 0, 0.2)";
+//     button.style.transform = "scale(1)";
+//   });
 
-  // Move character when button is clicked
-  button.addEventListener("click", () => moveCharacter(direction));
+//   // Move character when button is clicked
+//   button.addEventListener("click", () => moveCharacter(direction));
   
-  controlsContainer.appendChild(button);
-}
+//   controlsContainer.appendChild(button);
+// }
 
-// Create left and right buttons
-createButton("⬅️", -0.25);
-createButton("➡️", 0.25);
+// // Create left and right buttons
+// createButton("⬅️", -0.25);
+// createButton("➡️", 0.25);
 
-const moveDistance = 5; // Distance to move per click
-// const groundWidth = 50; // Width of playable area
-const halfGroundWidth = groundWidth / 2;
+// const moveDistance = 5; // Distance to move per click
+// // const groundWidth = 50; // Width of playable area
+// const halfGroundWidth = groundWidth / 2;
 
-function moveCharacter(direction) {
-  const newPositionX = character.position.x + (direction * moveDistance);
+// function moveCharacter(direction) {
+//   const newPositionX = character.position.x + (direction * moveDistance);
 
-  // Ensure movement stays within bounds
-  if (newPositionX >= -halfGroundWidth && newPositionX <= halfGroundWidth) {
-    gsap.to(character.position, {
-      x: newPositionX,
-      duration: 0.2,
-      ease: "power2.out"
-    });
+//   // Ensure movement stays within bounds
+//   if (newPositionX >= -halfGroundWidth && newPositionX <= halfGroundWidth) {
+//     gsap.to(character.position, {
+//       x: newPositionX,
+//       duration: 0.2,
+//       ease: "power2.out"
+//     });
+//   }
+// }
+// }
+
+
+function updateModelSize() {
+  if (currentScene !== 'gameScene') return; // Only adjust in gameScene
+  if (window.innerWidth <= 768) {
+    // Mobile: Reduce size
+    character.scale.set(1.0, 1.0, 1.0);
+    obstacles.forEach(obstacle => obstacle.scale.set(1.0, 1.0, 1.0));
+  } else {
+    // PC: Default size
+    character.scale.set(1.4, 1.4, 1.4);
+    obstacles.forEach(obstacle => obstacle.scale.set(1.4, 1.4, 1.4));
   }
 }
+
+
+
+function updateCameraPosition() {
+  if (currentScene !== 'gameScene') return; // Only adjust in gameScene
+  if (window.innerWidth <= 768) {
+    // Mobile: Higher camera view
+    camera.position.set(0, 4, 10);
+  } else {
+    // PC: Lower, closer camera view
+    camera.position.set(0, 4, 6);
+  }
+  camera.updateProjectionMatrix(); // Ensure projection updates
 }
 
-
+// Handle window resize
 window.addEventListener('resize', () => {
-  renderer.setSize(window.clientWidth, window.clientHeight);
-  camera.aspect = window.clientWidth / window.clientHeight;
+  renderer.setSize(window.innerWidth, window.innerHeight); // Fix incorrect clientWidth
+  camera.aspect = window.innerWidth / window.innerHeight; 
   camera.updateProjectionMatrix();
-  console.log('resized')
+  updateCameraPosition(); // Adjust camera when resizing
+  updateModelSize();
+  console.log('Resized');
 });
 
 const controls = new OrbitControls(camera,renderer.domElement)
@@ -1742,10 +1775,8 @@ updateDistance(delta)
     controls.enableRotate = false; 
     controls.autoRotate=false;
     statsContainer.style.display = "block";
-    camera.position.set(0, 5, 15);
-  
 updateMusic()
-    // Update game objects if needed
+
   }}
 
   else if (currentScene === 'mainMenu') {
@@ -1757,3 +1788,4 @@ updateMusic()
 }
 animate();
 initializeScene();
+updateCameraPosition()

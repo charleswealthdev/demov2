@@ -910,7 +910,7 @@ function createStatElement(imageSrc) {
 
 // Create individual stat elements (Pure icon-based)
 const scoreElement = createStatElement("images/xp_17596046.png");
-const coinsElement = createStatElement("images/bitcoin_1490849.png");
+const coinsElement = createStatElement("https://img.icons8.com/?size=100&id=ovHld7NfgG9g&format=png&color=000000");
 const distanceElement = createStatElement("images/destination_854945.png");
 
 // Append elements to the stats container
@@ -1169,7 +1169,7 @@ const powerUpModels = [
 ];
 
 // GLTF Loader
-
+let model;
 
 // Create Power-Ups
 function createPowerUps() {
@@ -1181,7 +1181,7 @@ function createPowerUps() {
       const model = gltf.scene;
 
       // Scale and position adjustments
-      model.scale.set(0.5, 0.5, 0.5);
+      model.scale.set(0.3, 0.3, 0.3);
       model.position.set(
         Math.random() * 10 - 5, // Random x position
         0.5, // y position

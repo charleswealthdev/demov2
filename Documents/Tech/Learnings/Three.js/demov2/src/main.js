@@ -423,14 +423,24 @@ const speedIncrement = 0.1; // Increment for difficulty
 const maxGameSpeed = 1.5; // Maximum speed for the game
 const milestoneDistance = 1000;
 // Ground material
+// const groundMaterial = new THREE.MeshStandardMaterial({
+//   map: textureTest,
+//   normalMap: textureNormal,
+//   roughnessMap: textureR,
+//   aoMap: textureM,
+//   side: THREE.DoubleSide,
+//   metalness: 1.0,
+// });
+
 const groundMaterial = new THREE.MeshStandardMaterial({
-  map: textureTest,
+  map: textureTest, 
   normalMap: textureNormal,
   roughnessMap: textureR,
-  aoMap: textureM,
   side: THREE.DoubleSide,
-  metalness: 1.0,
+  aoMap: textureM,
+    metalness: 0.7,
 });
+
 
 let treeModel = null;
 let buildingModel = null;

@@ -909,9 +909,9 @@ function createStatElement(imageSrc) {
 }
 
 // Create individual stat elements (Pure icon-based)
-const scoreElement = createStatElement("images/xp_17596046.png");
+const scoreElement = createStatElement("xp_17596046.png");
 const coinsElement = createStatElement("https://img.icons8.com/?size=100&id=ovHld7NfgG9g&format=png&color=000000");
-const distanceElement = createStatElement("images/destination_854945.png");
+const distanceElement = createStatElement("destination_854945.png");
 
 // Append elements to the stats container
 statsContainer.appendChild(scoreElement.container);

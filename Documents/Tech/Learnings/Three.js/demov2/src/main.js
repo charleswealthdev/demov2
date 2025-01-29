@@ -1664,8 +1664,8 @@ function createButton(emoji, direction) {
 }
 
 // Create left and right buttons
-createButton("⬅️", -0.3);
-createButton("➡️", 0.3);
+createButton("⬅️", -0.25);
+createButton("➡️", 0.25);
 
 const moveDistance = 5; // Distance to move per click
 // const groundWidth = 50; // Width of playable area
@@ -1742,7 +1742,7 @@ updateDistance(delta)
     controls.enableRotate = false; 
     controls.autoRotate=false;
     statsContainer.style.display = "block";
-    camera.position.set(0, 3.6, 9);
+    camera.position.set(0, 5, 15);
   
 updateMusic()
     // Update game objects if needed

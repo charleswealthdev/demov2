@@ -282,11 +282,11 @@ helpButton.addEventListener('click', () => {
     `
       <p><strong>Welcome, survivor!</strong> Here's what you need to know:</p>
       <ul style="text-align: left; margin: 10px 0 20px 0; padding-left: 20px;">
-        <li>Use <strong>arrow keys</strong> or the <strong>joystick</strong> to move your character.</li>
+        <li>Use <strong>arrow keys on PC</strong> or the <strong>joystick on Mobile</strong> to move your character.</li>
         <li><strong>Collect coins</strong> to increase your value-don’t miss any!</li>
-        <li><strong>Avoid cars</strong> like your life depends on it—because it does.</li>
-        <li>Press <strong>Button A</strong> to activate your shield and gain power over the cars for a limited time.</li>
-        <li>Press <strong>Button B</strong> to disappear and reappear in a random safe spot.</li>
+        <li><strong>Avoid cars</strong> like your life depends on it</li>
+        <li>Press <strong>Button X or key S on PC</strong> to activate your shield and gain power over the cars for a limited time.</li>
+        <li>Press <strong>Button O or key P on PC</strong> to disappear and reappear in a random safe spot.</li>
       </ul>
       <p>Whatever you do, stay alive! The longer you survive, the higher your score. Good luck!</p>
     `
@@ -608,10 +608,8 @@ const minZDistance = 40; // Adjust for gameplay difficulty
 // List of models for obstacles
 const obstacleModels = [
   'royal_59_free__warhavoc_survival_car_pack.glb',
-  // 'plymouth_fury_1958_crazy_version_draft.glb',
+  'twisted_metal_harbor_city_thumper_remake.glb'
 
-  // '2019_ford_gt_mkii_track.glb ',
-  // '2018_nissan_leaf_nismo_rc_concept.glb',
 
   // Add paths to more models as needed
 ];
@@ -870,48 +868,141 @@ function updateDistance(delta) {
 
 
 
-const powerUps = []; // Array to store active power-ups
+const powerUps = []; // Array to store active power-ups*
 
-// Create a container for the game stats
+
+// Create stats container (UI styling)
 const statsContainer = document.createElement("div");
-statsContainer.style.position = "fixed";
-statsContainer.style.top = "20px";
-statsContainer.style.left = "20px";
-statsContainer.style.backgroundColor = "rgba(0, 0, 0, 0.5)"; // Transparent black background
-statsContainer.style.border = "none"; // Gold border with transparency
-statsContainer.style.borderRadius = "15px";
-statsContainer.style.padding = "15px 20px";
-statsContainer.style.color = "#fff";
-statsContainer.style.fontFamily = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
-statsContainer.style.fontSize = "1.2rem";
-statsContainer.style.boxShadow = "0 4px 15px rgba(0, 0, 0, 0.4)"; // Subtle shadow for depth
-statsContainer.style.display = "none"; // Initially hidden
-statsContainer.style.zIndex = "1000";
+statsContainer.style.position = "absolute";
+statsContainer.style.top = "10px";
+statsContainer.style.left = "10px";
+statsContainer.style.background = "rgba(0, 0, 0, 0.5)";
+statsContainer.style.padding = "10px";
+statsContainer.style.borderRadius = "8px";
+statsContainer.style.display = "flex";
+statsContainer.style.flexDirection = "column";
+statsContainer.style.gap = "10px"; // Add spacing between elements
+ statsContainer.style.display = "none"; // Initially hidden
 
-// Create individual stat elements
-const scoreElement = document.createElement("div");
-scoreElement.style.marginBottom = "10px";
-scoreElement.innerHTML = `🏆 Score: ${score}`;
-statsContainer.appendChild(scoreElement);
+// Function to create a stat element with only an icon and number
+function createStatElement(imageSrc) {
+  const container = document.createElement("div");
+  container.style.display = "flex";
+  container.style.alignItems = "center";
 
-const coinsElement = document.createElement("div");
-coinsElement.style.marginBottom = "10px";
-coinsElement.innerHTML = `💰 Coins Collected: ${collectibleCount}`;
-statsContainer.appendChild(coinsElement);
+  const img = document.createElement("img");
+  img.src = imageSrc;
+  img.style.width = "25px"; // Adjust size as needed
+  img.style.height = "25px";
+  img.style.marginRight = "8px";
 
-const distanceElement = document.createElement("div");
-distanceElement.innerHTML = `🚀 Distance: 0m`;
-statsContainer.appendChild(distanceElement);
+  const valueElement = document.createElement("span");
+  valueElement.style.color = "white";
+  valueElement.style.fontSize = "18px";
+  valueElement.style.fontFamily = "Arial, sans-serif";
+  valueElement.innerHTML = "0"; // Default value
 
-// Add the stats container to the document body
+  container.appendChild(img);
+  container.appendChild(valueElement);
+
+  return { container, valueElement };
+}
+
+// Create individual stat elements (Pure icon-based)
+const scoreElement = createStatElement("images/xp_17596046.png");
+const coinsElement = createStatElement("images/bitcoin_1490849.png");
+const distanceElement = createStatElement("images/destination_854945.png");
+
+// Append elements to the stats container
+statsContainer.appendChild(scoreElement.container);
+statsContainer.appendChild(coinsElement.container);
+statsContainer.appendChild(distanceElement.container);
+
+// Add stats container to the document body
 document.body.appendChild(statsContainer);
 
-// Function to update stats
+// Function to update stats dynamically
 function updateScoreDisplay() {
-  scoreElement.innerHTML = `🏆 Score: ${score}`;
-  coinsElement.innerHTML = `💰 Coins Collected: ${collectibleCount}`;
-  distanceElement.innerHTML = `🚀 Distance: ${Math.floor(distanceTraveled)}m`;
+  scoreElement.valueElement.innerHTML = score;
+  coinsElement.valueElement.innerHTML = collectibleCount;
+  distanceElement.valueElement.innerHTML = Math.floor(distanceTraveled) + "m";
 }
+
+
+// Create a container for the game stats
+// const statsContainer = document.createElement("div");
+// statsContainer.style.position = "fixed";
+// statsContainer.style.top = "20px";
+// statsContainer.style.left = "20px";
+// statsContainer.style.backgroundColor = "rgba(0, 0, 0, 0.5)"; // Transparent black background
+// statsContainer.style.border = "none"; // Gold border with transparency
+// statsContainer.style.borderRadius = "15px";
+// statsContainer.style.padding = "15px 20px";
+// statsContainer.style.color = "#fff";
+// statsContainer.style.fontFamily = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
+// statsContainer.style.fontSize = "1.2rem";
+// statsContainer.style.boxShadow = "0 4px 15px rgba(0, 0, 0, 0.4)"; // Subtle shadow for depth
+// statsContainer.style.display = "none"; // Initially hidden
+// statsContainer.style.zIndex = "1000";
+
+// // Create individual stat elements
+// const scoreElement = document.createElement("div");
+// scoreElement.style.marginBottom = "10px";
+// scoreElement.innerHTML = `🏆 Score: ${score}`;
+// statsContainer.appendChild(scoreElement);
+
+// const coinsElement = document.createElement("div");
+// coinsElement.style.marginBottom = "10px";
+// coinsElement.innerHTML = `💰 Coins Collected: ${collectibleCount}`;
+// statsContainer.appendChild(coinsElement);
+
+// const distanceElement = document.createElement("div");
+// distanceElement.innerHTML = `🚀 Distance: 0m`;
+// statsContainer.appendChild(distanceElement);
+
+// // Add the stats container to the document body
+// document.body.appendChild(statsContainer);
+
+
+// function createStatElement(imageSrc, textContent) {
+//   const container = document.createElement("div");
+//   container.style.display = "flex";
+//   container.style.alignItems = "center";
+//   container.style.marginBottom = "10px";
+
+//   const img = document.createElement("img");
+//   img.src = imageSrc;
+//   img.style.width = "20px";  // Adjust size as needed
+//   img.style.height = "20px";
+//   img.style.marginRight = "8px";
+
+//   const textElement = document.createElement("span");
+//   textElement.innerHTML = textContent;
+
+//   container.appendChild(img);
+//   container.appendChild(textElement);
+
+//   return { container, textElement };
+// }
+
+// const scoreElement = createStatElement("images/xp_17596046.png", `: ${score}`);
+// const coinsElement = createStatElement("images/bitcoin_1490849.png", `: ${collectibleCount}`);
+// const distanceElement = createStatElement("images/destination_854945.png", `: 0m`);
+
+// statsContainer.appendChild(scoreElement.container);
+// statsContainer.appendChild(coinsElement.container);
+// statsContainer.appendChild(distanceElement.container);
+
+// // Add the stats container to the document body
+// document.body.appendChild(statsContainer);
+
+
+// // Function to update stats
+// function updateScoreDisplay() {
+//   scoreElement.textElement.innerHTML = `: ${score}`;
+//   coinsElement.textElement.innerHTML = `: ${collectibleCount}`;
+//   distanceElement.textElement.innerHTML = `: ${Math.floor(distanceTraveled)}m`;
+// }
 // Game Over container
 // Game Over container// Game Over container
 const gameOverContainer = document.createElement("div");
@@ -1020,6 +1111,7 @@ function gameOver() {
   console.log("Game Over!");
   // Stop game logic
   cancelAnimationFrame(animationFrameId); // Stops the animation loop
+  // updateScoreDisplay()
   document.getElementById("coinsCollected").innerHTML = `Coins Collected: ${collectibleCount}`;
   document.getElementById("totalScore").innerHTML = `Score: ${score}`;
   document.getElementById("distanceTraveled").innerHTML = `Distance Traveled: ${Math.floor(distanceTraveled)}m`;
@@ -1310,22 +1402,22 @@ function updateScore() {
   updateScoreDisplay();
 }
 
-function rewardCollectible() {
-  collectibleCount++;
-  score += pointsPerCollectible;
+// function rewardCollectible() {
+//   collectibleCount++;
+//   score += pointsPerCollectible;
 
-  // Update score display
-  updateScoreDisplay();
-}
+//   // Update score display
+//   updateScoreDisplay();
+// }
 
-function resetScore() {
-  score = 0;
-  collectibleCount = 0;
-  distanceTraveled = 0;
+// function resetScore() {
+//   score = 0;
+//   collectibleCount = 0;
+//   distanceTraveled = 0;
 
-  // Update score display
-  updateScoreDisplay();
-}
+//   // Update score display
+//   updateScoreDisplay();
+// }
 
 
 let collectedPositions = 0; // Track position-changing items collected

@@ -309,13 +309,16 @@ let isMusicPlaying = false;
 // Audio Setup
 const mainMenuMusic = new Audio('drone-high-tension-and-suspense-background-162365.mp3'); // Replace with your main menu music file path
 const gameSceneMusic = new Audio('adrenaline-roger-gabalda-main-version-02-23-11021.mp3'); // Replace with your game scene music file path
-
+const bossmodeMusic = new Audio('FastMix-2022-03-16_-_Escape_Route_-_www.FesliyanStudios.com_.mp3');
 // Music properties
 mainMenuMusic.loop = true;
 mainMenuMusic.volume = 0.15;
 
 gameSceneMusic.loop = true;
 gameSceneMusic.volume = 0.15;
+
+bossmodeMusic.loop = true;
+bossmodeMusic.volume = 0.25;
 
 
 musicButton.addEventListener('click', () => {
@@ -338,10 +341,44 @@ musicButton.addEventListener('click', () => {
 // Add the button to the DOM
 document.body.appendChild(musicButton);
 
-// Scene-Specific Music Management
+// // Scene-Specific Music Management
+// function updateMusic() {
+//   if (!isMusicPlaying) return; // Skip if music is toggled off
+
+//   if (currentScene === 'mainMenu') {
+//     if (!mainMenuMusic.paused) return; // Avoid restarting the same music
+//     gameSceneMusic.pause();
+//     gameSceneMusic.currentTime = 0;
+//     mainMenuMusic.play();
+//   } else if (currentScene === 'gameScene') {
+//     if (!gameSceneMusic.paused) return; // Avoid restarting the same music
+//     mainMenuMusic.pause();
+//     mainMenuMusic.currentTime = 0;
+//     gameSceneMusic.play();
+//   }
+// }
+
 function updateMusic() {
   if (!isMusicPlaying) return; // Skip if music is toggled off
 
+  // Check if boss mode is active. If so, play boss mode music.
+  if (bossActive) {
+    if (bossmodeMusic.paused) {
+      // Pause other music and reset their times
+      if (!gameSceneMusic.paused) {
+        gameSceneMusic.pause();
+        gameSceneMusic.currentTime = 0;
+      }
+      if (!mainMenuMusic.paused) {
+        mainMenuMusic.pause();
+        mainMenuMusic.currentTime = 0;
+      }
+      bossmodeMusic.play();
+    }
+    return; // Boss mode is active; exit here.
+  }
+
+  // Otherwise, proceed as before:
   if (currentScene === 'mainMenu') {
     if (!mainMenuMusic.paused) return; // Avoid restarting the same music
     gameSceneMusic.pause();
@@ -355,7 +392,8 @@ function updateMusic() {
   }
 }
 
-// Hover effect
+
+
 startButton.addEventListener('mouseenter', () => {
   startButton.style.backgroundColor = 'white';
   startButton.style.color = 'black';
@@ -420,7 +458,7 @@ const groundCount = 3; // Number of ground tiles
 const tileSpacing = groundLength;
 let speed = 0.5
 const speedIncrement = 0.1; // Increment for difficulty
-const maxGameSpeed = 1.5; // Maximum speed for the game
+const maxGameSpeed = 1.2; // Maximum speed for the game
 const milestoneDistance = 1000;
 // Ground material
 // const groundMaterial = new THREE.MeshStandardMaterial({
@@ -614,10 +652,26 @@ const obstacleModels = [
   // Add paths to more models as needed
 ];
 
-
+let boss;
 let honkCooldown = false;
+let bossActive = false; // Is boss mode active?
+let characterHealth = 100;
+let bossHealth = 200;
+const bossDamagePerHit = 10; // Each barrel hit reduces boss health by 10
+const bossProjectiles=[]
+let bossModeTimer;
+let bossTimeCountdown;
+let bossStartTime;
+let bulletSpeed = 3;
+let bossSpeed = 0.5; // Boss movement speed
+let bossAttackStarted = false;
+let muzzleFlashDuration = 100; 
+let bossMovementInterval;
+let gameOverTriggered = false;
+let bossModeCompleted = false;
 // Function to create obstacles
 function createObstacles() {
+  if (bossActive) return;
   if (obstacles.length >= maxObstacles) return;
 
   // Randomly select a model from the list
@@ -684,7 +738,16 @@ function createObstacles() {
   const powerUpSound = new Audio("coin-pickup-98269.mp3");
   const powerUpActiveSound = new Audio("mixkit-electronics-power-up-2602.wav");
   const powerUpEndSound = new Audio("power-up-end.mp3");
-
+  const shootSound = new Audio("pistol-shot-233473.mp3");
+  const hitSound = new Audio("young-man-being-hurt-95628.mp3");
+  
+  function playShootSound() {
+      shootSound.play();
+  }
+  
+  function playHitSound() {
+      hitSound.play();
+  }
   // Volume levels
   honkSound.volume = 0.6;
   collisionSound.volume = 0.8;
@@ -693,6 +756,9 @@ function createObstacles() {
   powerUpActiveSound.volume = 0.5;
   powerUpEndSound.volume = 0.6;
 explodeSound.volume=0.8;
+hitSound.volume=0.5;
+shootSound.volume=0.4
+  
   
 
   function handleCollision() {
@@ -711,7 +777,9 @@ function detectCollisionwithCars(character, obstacles) {
 }
 // Update obstacles and check for collisions
 function updateObstacles() {
+  
   obstacles.forEach((obstacle, index) => {
+    if (bossActive) return; 
     // Move obstacle forward
     obstacle.position.z += speed;
 
@@ -774,6 +842,425 @@ setInterval(() => {
   if (obstacles.length < maxObstacles) createObstacles();
 }, 6000);
 
+// function startBossMode() {
+//   bossActive = true;
+//   console.log("Boss Mode Activated!");
+
+//   // Stop obstacle creation
+//   clearInterval(createObstacles);
+//   document.getElementById("bossHealthBarContainer").style.display = "block";
+//   document.getElementById("playerHealthBarContainer").style.display = "block";
+//   // Spawn Boss
+//   spawnBoss();
+//   gameSceneMusic.pause()
+//   bossmodeMusic.play()
+
+
+//   bossStartTime = Date.now(); // Track boss mode start time
+
+//   let timeRemaining = 300; // 5 minutes
+
+//   // Show Boss Timer UI
+//   bossTimerUI.style.display = "block";
+//   bossTimerText.textContent = timeRemaining;
+
+//   // Countdown every second
+//   bossTimeCountdown = setInterval(() => {
+//     timeRemaining--;
+//     bossTimerText.textContent = timeRemaining;
+
+//     if (timeRemaining <= 0) {
+//       endBossMode(); // Stop Boss Mode after 5 minutes
+//     }
+//   }, 1000);
+
+//   // Set a timer to automatically end boss mode after 5 minutes
+//   bossModeTimer = setTimeout(() => {
+//       if (!gameOver) endBossMode();  // Ensure game doesn't continue if already over
+//   }, 300000); // 5 minutes = 300,000ms
+
+// }
+
+
+function startBossMode() {
+  bossActive = true;
+  console.log("Boss Mode Activated!");
+
+  removeAllObstacles()
+
+  // Stop obstacle creation (make sure you have stored that interval ID in a variable)
+  // For example, if you had: obstaclesInterval = setInterval(createObstacles, 3000);
+  // Then call: clearInterval(obstaclesInterval);
+
+  // Show health bars (they are assumed to be created via JS)
+ 
+  document.getElementById("playerHealthBarContainer").style.display = "block";
+  
+  // Switch music: Pause game scene music and play boss mode music
+ 
+
+  // Spawn the boss and then start its movement and shooting
+  spawnBoss();
+
+  // Record the start time (if needed for other logic)
+  bossStartTime = Date.now();
+
+  // Set up the boss mode timer and countdown
+  let timeRemaining =   80; // 5 minutes in seconds
+
+  // Show the Boss Timer UI (dynamically created earlier in JS)
+  bossTimerUI.style.display = "block";
+  bossTimerText.textContent = timeRemaining;
+
+  // Countdown every second:
+  bossTimeCountdown = setInterval(() => {
+    timeRemaining--;
+    bossTimerText.textContent = timeRemaining;
+    if (timeRemaining <= 0) {
+      // When time is up, end boss mode.
+      endBossMode();
+    }
+  }, 1000);
+
+  // Also set a safety timeout to end boss mode after 5 minutes
+  bossModeTimer = setTimeout(() => {
+    if (!gameOver) endBossMode();
+  }, 80000); // 300,000 ms = 5 minutes
+}
+
+
+function spawnBoss() {
+  gltfLoader.load('the_ugv_robot_2.glb', (gltf) => {
+    boss = gltf.scene;
+    boss.scale.set(2, 2, 2);
+    boss.position.set(0, 0, -30);
+    gameScene.add(boss);
+     updateBossPosition()
+   startBossShooting()
+    
+  });
+}
+
+
+// function bossAttack() {
+//   setInterval(() => {
+//     if (!bossActive) return;
+//     const projectile = createBossProjectile();
+//     gameScene.add(projectile);
+//     bossProjectiles.push(projectile);
+//   }, 3000);
+// }
+
+const bulletTexture = textureLoader.load('409100639_da9fefba-d870-4caa-ba9f-8f0c9f3d50ff.jpg');
+
+
+function createBossProjectile() {
+  const bulletGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.3, 8);
+  
+const bulletMaterial = new THREE.MeshStandardMaterial({
+  map: bulletTexture, 
+  side: THREE.DoubleSide,
+    metalness: 0.5,
+});
+  // const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+  const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
+
+  
+  bullet.position.copy(boss.position);
+  bullet.rotation.x = Math.PI / 2; // Make it face forward
+
+  // Offset target position (aim at upper body)
+  const targetPosition = character.position.clone();
+  targetPosition.y += 1.2; // Move up to chest area
+
+  const direction = new THREE.Vector3().subVectors(targetPosition, boss.position).normalize();
+  bullet.velocity = direction.multiplyScalar(bulletSpeed);
+
+ 
+  if (!bullet.velocity) {
+    console.error("Bullet velocity not set! Check boss and player positions.");
+  }
+
+  if (!character || !character.position) {
+    console.error("Character position is undefined! Bullet can't track player.");
+    return null; // Prevent creating the bullet if player data is missing
+  }
+  
+
+  gameScene.add(bullet);
+  return bullet;
+}
+
+
+function updateBossProjectiles() {
+  bossProjectiles.forEach((bullet, index) => {
+    if (!bullet || !bullet.velocity) {
+      console.warn("Bullet or velocity is undefined, skipping...");
+      return; // Prevent error by skipping undefined bullets
+    }
+
+    bullet.position.add(bullet.velocity);
+
+    // Remove if out of bounds
+    if (bullet.position.z > 50 || bullet.position.z < -50) {
+      gameScene.remove(bullet);
+      bossProjectiles.splice(index, 1);
+    }
+
+    // Check for collision with the player
+    if (detectCollisionwithPlayer(character, bullet)) {
+      handlePlayerCollision(bullet);
+      gameScene.remove(bullet);
+      bossProjectiles.splice(index, 1);
+    }
+  });
+}
+
+// Detect collision between the character and the projectile
+function detectCollisionwithPlayer(character, bullet) {
+  return character.position.distanceTo(bullet.position) < 1.5;
+}
+
+
+
+function handlePlayerCollision(bullet) {
+  console.log("💥 Player hit by boss bullet!");
+playHitSound()
+  createBloodEffect(bullet.position); // Add blood splatter
+
+  // Small knockback effect
+  character.position.x += (Math.random() - 0.5) * 0.5;
+  // character.position.y += (Math.random() - 0.5) * 0.5;
+
+  // Reduce health or trigger death animation
+   characterHealth -= 5;
+   updateHealthUI()
+
+   if (characterHealth <= 0) {
+    gameOver()
+}
+}
+
+function createBloodEffect(position) {
+  const bloodParticles = new THREE.Group();
+  for (let i = 0; i < 20; i++) {
+    const bloodGeometry = new THREE.SphereGeometry(0.05, 4, 4);
+    const bloodMaterial = new THREE.MeshBasicMaterial({ color: 0x8b0000 }); // Dark red
+    const bloodDrop = new THREE.Mesh(bloodGeometry, bloodMaterial);
+
+    bloodDrop.position.copy(position);
+    bloodDrop.velocity = new THREE.Vector3(
+      (Math.random() - 0.5) * 0.2,
+      (Math.random() - 0.5) * 0.3,
+      (Math.random() - 0.5) * 0.2
+    );
+
+    bloodParticles.add(bloodDrop);
+  }
+
+  gameScene.add(bloodParticles);
+
+  // Animate blood particles
+  function animateBlood() {
+    bloodParticles.children.forEach((particle) => {
+      particle.position.add(particle.velocity);
+      particle.velocity.y -= 0.01; // Gravity effect
+    });
+
+    setTimeout(() => gameScene.remove(bloodParticles), 800);
+  }
+
+  setInterval(animateBlood, 50);
+}
+
+
+
+function updateBossPosition() {
+  // Store the movement interval in a global variable so we can clear it later
+  bossMovementInterval = setInterval(() => {
+    if (!boss || !character) return;
+    const dx = character.position.x - boss.position.x;
+    if (Math.abs(dx) > 0.1) {
+      boss.position.x += dx * bossSpeed;
+    }
+  }, 500);
+}
+
+function createMuzzleFlash() {
+  const flashMaterial = new THREE.SpriteMaterial({ color: 0xffee00 });
+  const muzzleFlash = new THREE.Sprite(flashMaterial);
+  muzzleFlash.scale.set(1, 1, 1);
+  muzzleFlash.position.copy(boss.position);
+  gameScene.add(muzzleFlash);
+  setTimeout(() => gameScene.remove(muzzleFlash), muzzleFlashDuration);
+}
+
+
+let bossShootingInterval;
+function startBossShooting() {
+    if (bossShootingInterval) return;  // Prevent duplicate intervals
+    console.log("🚀 Boss Started Shooting!");
+
+    bossShootingInterval = setInterval(() => {
+        if (!bossActive) {
+            clearInterval(bossShootingInterval);
+            bossShootingInterval = null;
+            return;
+        }
+        createMuzzleFlash();
+        const bullet = createBossProjectile();
+        if (bullet) bossProjectiles.push(bullet);
+        playShootSound();
+    }, 2000);
+}
+
+
+function checkBossTrigger() {
+  if (distanceTraveled >= 1000 && !bossActive && !bossModeCompleted) 
+    {
+      startBossMode();
+    }
+}
+
+function endBossMode() {
+  bossActive = false;
+  bossModeCompleted = true;
+  console.log("Boss Mode Ended! Resuming obstacle creation...");
+
+  // Reward the player (adjust as needed)
+  collectibleCount += 10;
+  console.log(`Player received 10 Bitcoins! Total: ${collectibleCount}`);
+
+  // Hide boss UI elements
+  document.getElementById("playerHealthBarContainer").style.display = "none";
+  bossTimerUI.style.display = "none";
+
+  // Switch music: Stop boss mode music and start game scene music
+  if (!bossmodeMusic.paused) {
+    bossmodeMusic.pause();
+    bossmodeMusic.currentTime = 0;
+  }
+  if (gameSceneMusic.paused) {
+    gameSceneMusic.play();
+  }
+
+  // Clear boss-related intervals and timeouts
+  clearInterval(bossTimeCountdown);
+  clearTimeout(bossModeTimer);
+  clearInterval(bossMovementInterval);
+  if (bossShootingInterval) {
+    clearInterval(bossShootingInterval);
+    bossShootingInterval = null;
+  }
+
+  // Remove the boss from the scene if it exists
+  if (boss) {
+    gameScene.remove(boss);
+    boss = null;
+  }
+
+  // Restart obstacle creation (using a single interval)
+  startObstacleCreation();
+}
+
+
+let obstaclesInterval;
+
+function startObstacleCreation() {
+  // Clear any existing interval first (to avoid stacking)
+  clearInterval(obstaclesInterval);
+  obstaclesInterval = setInterval(createObstacles, 3000);
+}
+
+
+// Helper to remove all obstacles from the scene
+function removeAllObstacles() {
+  obstacles.forEach(obstacle => gameScene.remove(obstacle));
+  obstacles.length = 0;
+}
+
+function createHealthBars() {
+  // Create Boss Health Bar
+  const bossHealthBarContainer = document.createElement("div");
+  bossHealthBarContainer.id = "bossHealthBarContainer";
+  bossHealthBarContainer.style.display = "none";
+  bossHealthBarContainer.style.position = "absolute";
+  bossHealthBarContainer.style.top = "10px";
+  bossHealthBarContainer.style.left = "50%";
+  bossHealthBarContainer.style.transform = "translateX(-50%)";
+  bossHealthBarContainer.style.background = "rgba(0,0,0,0.7)";
+  bossHealthBarContainer.style.padding = "10px";
+  bossHealthBarContainer.style.borderRadius = "10px";
+
+  const bossHealthBar = document.createElement("div");
+  bossHealthBar.id = "bossHealthBar";
+  bossHealthBar.style.width = "150px";
+  bossHealthBar.style.height = "20px";
+  bossHealthBar.style.background = "red";
+
+  bossHealthBarContainer.appendChild(bossHealthBar);
+  document.body.appendChild(bossHealthBarContainer);
+
+  // Create Player Health Bar
+  const playerHealthBarContainer = document.createElement("div");
+  playerHealthBarContainer.id = "playerHealthBarContainer";
+  playerHealthBarContainer.style.display = "none";
+  playerHealthBarContainer.style.position = "absolute";
+  playerHealthBarContainer.style.top = "5px";
+  playerHealthBarContainer.style.left = "50%";
+  playerHealthBarContainer.style.transform = "translateX(-50%)";
+  playerHealthBarContainer.style.background = "rgba(0,0,0,0.7)";
+  playerHealthBarContainer.style.padding = "10px";
+  playerHealthBarContainer.style.borderRadius = "10px";
+
+  const playerHealthBar = document.createElement("div");
+  playerHealthBar.id = "playerHealthBar";
+  playerHealthBar.style.width = "150px";
+  playerHealthBar.style.height = "15px";
+  playerHealthBar.style.background = "green";
+
+  playerHealthBarContainer.appendChild(playerHealthBar);
+  document.body.appendChild(playerHealthBarContainer);
+}
+
+// Call this function when the game loads
+createHealthBars();
+
+
+function updateHealthUI() {
+  const bossHealthBar = document.getElementById("bossHealthBar");
+  const playerHealthBar = document.getElementById("playerHealthBar");
+
+  if (bossHealthBar) bossHealthBar.style.width = `${bossHealth}px`;
+  if (playerHealthBar) playerHealthBar.style.width = `${characterHealth}px`;
+}
+
+
+// Create Boss Mode Timer UI dynamically
+let bossTimerUI = document.createElement("div");
+bossTimerUI.id = "bossTimer";
+bossTimerUI.style.position = "absolute";
+bossTimerUI.style.top = "30px";
+bossTimerUI.style.left = "50%";
+bossTimerUI.style.transform = "translateX(-50%)";
+bossTimerUI.style.fontSize = "10px";
+bossTimerUI.style.fontWeight = "bold";
+bossTimerUI.style.background = "rgba(0, 0, 0, 0.7)";
+bossTimerUI.style.color = "white";
+bossTimerUI.style.padding = "5px 10px";
+bossTimerUI.style.borderRadius = "5px";
+bossTimerUI.style.display = "none"; // Hidden initially
+
+// Add text inside
+let bossTimerText = document.createElement("span");
+bossTimerText.id = "bossTimeRemaining";
+bossTimerUI.appendChild(document.createTextNode("Time Left: "));
+bossTimerUI.appendChild(bossTimerText);
+bossTimerUI.appendChild(document.createTextNode("s"));
+
+// Append to body
+document.body.appendChild(bossTimerUI);
+
 
 
 
@@ -814,6 +1301,8 @@ function getRandomNotification(range) {
 
 // Notify player about difficulty increase
 function notifyDifficultyIncrease(milestoneRange) {
+
+  if (bossActive) return;
   const notificationText = getRandomNotification(milestoneRange);
 
   const notification = document.createElement('div');
@@ -855,17 +1344,22 @@ function adjustSpeedBasedOnProgress() {
     if (Math.floor(distanceTraveled) % milestoneDistance === 0) {
       speed = Math.min(speed + speedIncrement, maxGameSpeed);
       console.log(`Game speed increased to: ${speed}`);
-      notifyDifficultyIncrease(milestoneRange);
+      if (!bossActive) {
+        notifyDifficultyIncrease(milestoneRange);
+      }
     }
   }
 }
 
-// Game loop function to update distance
-function updateDistance(delta) {
-  distanceTraveled += speed * delta; // Update distance based on speed and delta time
-  adjustSpeedBasedOnProgress(); // Check and adjust speed based on progress
-}
 
+function updateDistance(delta) {
+  if (bossActive) {
+    return; // Do nothing if boss mode is active
+  }
+  distanceTraveled += speed * delta; // Update distance only if not in boss mode
+  adjustSpeedBasedOnProgress();
+  checkBossTrigger();
+}
 
 
 const powerUps = []; // Array to store active power-ups*
@@ -1109,12 +1603,30 @@ gameOverContainer.appendChild(restartButton);
 // Function to trigger game over
 function gameOver() {
   console.log("Game Over!");
+  gameOverTriggered=true
   // Stop game logic
   cancelAnimationFrame(animationFrameId); // Stops the animation loop
   // updateScoreDisplay()
   document.getElementById("coinsCollected").innerHTML = `Coins Collected: ${collectibleCount}`;
   document.getElementById("totalScore").innerHTML = `Score: ${score}`;
   document.getElementById("distanceTraveled").innerHTML = `Distance Traveled: ${Math.floor(distanceTraveled)}m`;
+
+
+
+  if (bossActive) {
+    clearTimeout(bossModeTimer);
+    clearInterval(bossMovementInterval);
+    clearInterval(bossShootingInterval);
+    bossShootingInterval = null;
+    clearInterval(bossTimeCountdown);
+    if (boss) {
+      gameScene.remove(boss);
+      boss = null;
+    }
+    document.getElementById("bossHealthBarContainer").style.display = "none";
+    document.getElementById("playerHealthBarContainer").style.display = "none";
+    bossTimerUI.style.display = "none";
+  }
  // Show Game Over container with fade-in effect
  gameOverContainer.style.display = "flex";
  setTimeout(() => {
@@ -1122,44 +1634,124 @@ function gameOver() {
  }, 50); // Delay for transition effect
   statsContainer.style.display = "none"; // Hide stats
 }
+
+
+// function restartGame() {
+//   console.log("Restarting game...");
+
+//   // Reset variables
+//   score = 0;
+//   collectibleCount = 0;
+//   distanceTraveled = 0;
+//   speed=0.7
+//   // Reset player position
+//   character.position.set(0, 0, 0);
+//   characterHealth = 100; // Reset player health to full
+//   // Clear obstacles
+//   obstacles.forEach((obstacle) => {
+//     gameScene.remove(obstacle);
+//   });
+//   obstacles.length = 0; // Empty the array
+
+//   // Clear power-ups
+//   powerUps.forEach((powerUp) => {
+//     gameScene.remove(powerUp);
+//   });
+//   powerUps.length = 0; // Empty the array
+
+//   // Reset shield effect
+//   isShieldActive = false;
+//   clearTimeout(shieldTimer);
+
+//   // Reset UI
+//   statsContainer.style.display = "none"; // Hide stats during restart
+//   gameOverContainer.style.display = "none"; // Hide Game Over screen
+//   updateScoreDisplay(); // Update the score UI to reflect reset values
+
+
+
+//   if (bossActive && bossModeCompleted) {
+//     bossActive = false;
+//     bossModeCompleted = false;
+//     clearTimeout(bossModeTimer);
+//     clearInterval(bossMovementInterval);
+//     clearInterval(bossTimeCountdown);
+//     gameScene.remove(boss); // Remove the boss
+//     document.getElementById("bossHealthBarContainer").style.display = "none";
+//   }
+//   // Re-initialize the scene
+
+//   // Restart animation loop
+//   animate();
+ 
+// }
+
+
 function restartGame() {
   console.log("Restarting game...");
 
-  // Reset variables
+  // Reset core game variables
   score = 0;
   collectibleCount = 0;
   distanceTraveled = 0;
-  speed=speed
-  // Reset player position
+  speed = 0.7;
   character.position.set(0, 0, 0);
+  characterHealth = 100; // Reset health to full
+  updateHealthUI();
 
-  // Clear obstacles
-  obstacles.forEach((obstacle) => {
-    gameScene.remove(obstacle);
-  });
-  obstacles.length = 0; // Empty the array
 
-  // Clear power-ups
-  powerUps.forEach((powerUp) => {
-    gameScene.remove(powerUp);
-  });
-  powerUps.length = 0; // Empty the array
+  bossActive = false;
+  bossModeCompleted = false; // Allow boss mode to be triggered again
+
+
+  // Remove obstacles and power-ups
+  obstacles.forEach(obstacle => gameScene.remove(obstacle));
+  obstacles.length = 0;
+  powerUps.forEach(powerUp => gameScene.remove(powerUp));
+  powerUps.length = 0;
 
   // Reset shield effect
   isShieldActive = false;
   clearTimeout(shieldTimer);
 
-  // Reset UI
-  statsContainer.style.display = "none"; // Hide stats during restart
-  gameOverContainer.style.display = "none"; // Hide Game Over screen
-  updateScoreDisplay(); // Update the score UI to reflect reset values
+  // If boss mode was active, clear all boss intervals and remove the boss
+  if (bossActive) {
+    bossActive = false;
+    clearTimeout(bossModeTimer);
+    clearInterval(bossMovementInterval);
+    clearInterval(bossShootingInterval);
+    bossShootingInterval = null;
+    clearInterval(bossTimeCountdown);
+    if (boss) {
+      gameScene.remove(boss);
+      boss = null;
+    }
+    document.getElementById("bossHealthBarContainer").style.display = "none";
+    document.getElementById("playerHealthBarContainer").style.display = "none";
+    bossTimerUI.style.display = "none";
+  }
+  
+  // Switch music: Ensure boss mode music stops and game scene music starts
+  if (!bossmodeMusic.paused) {
+    bossmodeMusic.pause();
+    bossmodeMusic.currentTime = 0;
+  }
+  if (gameSceneMusic.paused) {
+    gameSceneMusic.play();
+  }
 
-  // Re-initialize the scene
+  // Hide UI elements
+  statsContainer.style.display = "none";
+  gameOverContainer.style.display = "none";
+  updateScoreDisplay();
+
+  // Restart obstacle creation
+  startObstacleCreation();
 
   // Restart animation loop
   animate();
- 
 }
+
 
 // Power-Up Models
 const powerUpModels = [
@@ -1867,11 +2459,19 @@ function animate() {
 
 updateGround()
 updateObstacles()
+if (bossActive) {
+  // updateBossPosition(); // Keep the boss moving towards the player
+  updateBossProjectiles(); // Update projectiles
+
+  updateHealthUI()
+}
 updatePowerUps()
 updateScoreDisplay()
 updateScore()
 updatePlayer()
-updateDistance(delta)
+if (!bossActive) {
+  updateDistance(delta);
+}
     if (currentScene === 'gameScene') {
     renderer.render(gameScene, camera);
     controls.enableRotate = false; 

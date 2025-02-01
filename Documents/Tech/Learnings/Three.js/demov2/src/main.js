@@ -434,15 +434,6 @@ gltfLoader.load('myavatar.glb', (gltf) => {
 
 
 
-  // // Example triggers
-  // document.addEventListener("carAppear", handleCarAppearance);
-  // document.addEventListener("carPass", handleCarPassing);
-
-  // document.addEventListener("powerUpCollected", handlePowerUpCollected);
-  // document.addEventListener("powerUpActivated", handlePowerUpActivated);
-  // document.addEventListener("powerUpExpired", handlePowerUpExpired);
-
-
 
 
 const textureTest = textureLoader.load('/luxury-vinyl-plank-light-ue/luxury-vinyl-plank-light-ue/luxury-vinyl-plank_light_albedo.png')
@@ -460,15 +451,6 @@ let speed = 0.5
 const speedIncrement = 0.1; // Increment for difficulty
 const maxGameSpeed = 1.2; // Maximum speed for the game
 const milestoneDistance = 1000;
-// Ground material
-// const groundMaterial = new THREE.MeshStandardMaterial({
-//   map: textureTest,
-//   normalMap: textureNormal,
-//   roughnessMap: textureR,
-//   aoMap: textureM,
-//   side: THREE.DoubleSide,
-//   metalness: 1.0,
-// });
 
 const groundMaterial = new THREE.MeshStandardMaterial({
   map: textureTest, 
@@ -657,14 +639,13 @@ let honkCooldown = false;
 let bossActive = false; // Is boss mode active?
 let characterHealth = 100;
 let bossHealth = 200;
-const bossDamagePerHit = 10; // Each barrel hit reduces boss health by 10
 const bossProjectiles=[]
 let bossModeTimer;
 let bossTimeCountdown;
-let bossStartTime;
+let bossStartTime=false
 let bulletSpeed = 3;
 let bossSpeed = 0.5; // Boss movement speed
-let bossAttackStarted = false;
+
 let muzzleFlashDuration = 100; 
 let bossMovementInterval;
 let gameOverTriggered = false;
@@ -842,44 +823,6 @@ setInterval(() => {
   if (obstacles.length < maxObstacles) createObstacles();
 }, 6000);
 
-// function startBossMode() {
-//   bossActive = true;
-//   console.log("Boss Mode Activated!");
-
-//   // Stop obstacle creation
-//   clearInterval(createObstacles);
-//   document.getElementById("bossHealthBarContainer").style.display = "block";
-//   document.getElementById("playerHealthBarContainer").style.display = "block";
-//   // Spawn Boss
-//   spawnBoss();
-//   gameSceneMusic.pause()
-//   bossmodeMusic.play()
-
-
-//   bossStartTime = Date.now(); // Track boss mode start time
-
-//   let timeRemaining = 300; // 5 minutes
-
-//   // Show Boss Timer UI
-//   bossTimerUI.style.display = "block";
-//   bossTimerText.textContent = timeRemaining;
-
-//   // Countdown every second
-//   bossTimeCountdown = setInterval(() => {
-//     timeRemaining--;
-//     bossTimerText.textContent = timeRemaining;
-
-//     if (timeRemaining <= 0) {
-//       endBossMode(); // Stop Boss Mode after 5 minutes
-//     }
-//   }, 1000);
-
-//   // Set a timer to automatically end boss mode after 5 minutes
-//   bossModeTimer = setTimeout(() => {
-//       if (!gameOver) endBossMode();  // Ensure game doesn't continue if already over
-//   }, 300000); // 5 minutes = 300,000ms
-
-// }
 
 
 function startBossMode() {
@@ -888,18 +831,9 @@ function startBossMode() {
 
   removeAllObstacles()
 
-  // Stop obstacle creation (make sure you have stored that interval ID in a variable)
-  // For example, if you had: obstaclesInterval = setInterval(createObstacles, 3000);
-  // Then call: clearInterval(obstaclesInterval);
-
-  // Show health bars (they are assumed to be created via JS)
- 
   document.getElementById("playerHealthBarContainer").style.display = "block";
   
-  // Switch music: Pause game scene music and play boss mode music
- 
-
-  // Spawn the boss and then start its movement and shooting
+  
   spawnBoss();
 
   // Record the start time (if needed for other logic)
@@ -940,16 +874,6 @@ function spawnBoss() {
     
   });
 }
-
-
-// function bossAttack() {
-//   setInterval(() => {
-//     if (!bossActive) return;
-//     const projectile = createBossProjectile();
-//     gameScene.add(projectile);
-//     bossProjectiles.push(projectile);
-//   }, 3000);
-// }
 
 const bulletTexture = textureLoader.load('409100639_da9fefba-d870-4caa-ba9f-8f0c9f3d50ff.jpg');
 
@@ -1270,7 +1194,6 @@ let collectibleCount = 0; // Number of collectibles gathered
 let isShieldActive = false; // Flag for shield power-up
 let shieldTimer = null; // Timer for shield effect duration
 let distanceTraveled = 0; // Distance traveled by the player
-const pointsPerCollectible = 10; // Points awarded per collectible
 const pointsPerDistance = 1; // Points awarded per distance unit
 let shieldVisual = null; // Placeholder for shield visual
 let shieldSizeMultiplier = 1.7;
@@ -1423,82 +1346,6 @@ function updateScoreDisplay() {
 }
 
 
-// Create a container for the game stats
-// const statsContainer = document.createElement("div");
-// statsContainer.style.position = "fixed";
-// statsContainer.style.top = "20px";
-// statsContainer.style.left = "20px";
-// statsContainer.style.backgroundColor = "rgba(0, 0, 0, 0.5)"; // Transparent black background
-// statsContainer.style.border = "none"; // Gold border with transparency
-// statsContainer.style.borderRadius = "15px";
-// statsContainer.style.padding = "15px 20px";
-// statsContainer.style.color = "#fff";
-// statsContainer.style.fontFamily = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
-// statsContainer.style.fontSize = "1.2rem";
-// statsContainer.style.boxShadow = "0 4px 15px rgba(0, 0, 0, 0.4)"; // Subtle shadow for depth
-// statsContainer.style.display = "none"; // Initially hidden
-// statsContainer.style.zIndex = "1000";
-
-// // Create individual stat elements
-// const scoreElement = document.createElement("div");
-// scoreElement.style.marginBottom = "10px";
-// scoreElement.innerHTML = `🏆 Score: ${score}`;
-// statsContainer.appendChild(scoreElement);
-
-// const coinsElement = document.createElement("div");
-// coinsElement.style.marginBottom = "10px";
-// coinsElement.innerHTML = `💰 Coins Collected: ${collectibleCount}`;
-// statsContainer.appendChild(coinsElement);
-
-// const distanceElement = document.createElement("div");
-// distanceElement.innerHTML = `🚀 Distance: 0m`;
-// statsContainer.appendChild(distanceElement);
-
-// // Add the stats container to the document body
-// document.body.appendChild(statsContainer);
-
-
-// function createStatElement(imageSrc, textContent) {
-//   const container = document.createElement("div");
-//   container.style.display = "flex";
-//   container.style.alignItems = "center";
-//   container.style.marginBottom = "10px";
-
-//   const img = document.createElement("img");
-//   img.src = imageSrc;
-//   img.style.width = "20px";  // Adjust size as needed
-//   img.style.height = "20px";
-//   img.style.marginRight = "8px";
-
-//   const textElement = document.createElement("span");
-//   textElement.innerHTML = textContent;
-
-//   container.appendChild(img);
-//   container.appendChild(textElement);
-
-//   return { container, textElement };
-// }
-
-// const scoreElement = createStatElement("images/xp_17596046.png", `: ${score}`);
-// const coinsElement = createStatElement("images/bitcoin_1490849.png", `: ${collectibleCount}`);
-// const distanceElement = createStatElement("images/destination_854945.png", `: 0m`);
-
-// statsContainer.appendChild(scoreElement.container);
-// statsContainer.appendChild(coinsElement.container);
-// statsContainer.appendChild(distanceElement.container);
-
-// // Add the stats container to the document body
-// document.body.appendChild(statsContainer);
-
-
-// // Function to update stats
-// function updateScoreDisplay() {
-//   scoreElement.textElement.innerHTML = `: ${score}`;
-//   coinsElement.textElement.innerHTML = `: ${collectibleCount}`;
-//   distanceElement.textElement.innerHTML = `: ${Math.floor(distanceTraveled)}m`;
-// }
-// Game Over container
-// Game Over container// Game Over container
 const gameOverContainer = document.createElement("div");
 gameOverContainer.style.position = "fixed";
 gameOverContainer.style.top = "0";
@@ -1636,57 +1483,6 @@ function gameOver() {
 }
 
 
-// function restartGame() {
-//   console.log("Restarting game...");
-
-//   // Reset variables
-//   score = 0;
-//   collectibleCount = 0;
-//   distanceTraveled = 0;
-//   speed=0.7
-//   // Reset player position
-//   character.position.set(0, 0, 0);
-//   characterHealth = 100; // Reset player health to full
-//   // Clear obstacles
-//   obstacles.forEach((obstacle) => {
-//     gameScene.remove(obstacle);
-//   });
-//   obstacles.length = 0; // Empty the array
-
-//   // Clear power-ups
-//   powerUps.forEach((powerUp) => {
-//     gameScene.remove(powerUp);
-//   });
-//   powerUps.length = 0; // Empty the array
-
-//   // Reset shield effect
-//   isShieldActive = false;
-//   clearTimeout(shieldTimer);
-
-//   // Reset UI
-//   statsContainer.style.display = "none"; // Hide stats during restart
-//   gameOverContainer.style.display = "none"; // Hide Game Over screen
-//   updateScoreDisplay(); // Update the score UI to reflect reset values
-
-
-
-//   if (bossActive && bossModeCompleted) {
-//     bossActive = false;
-//     bossModeCompleted = false;
-//     clearTimeout(bossModeTimer);
-//     clearInterval(bossMovementInterval);
-//     clearInterval(bossTimeCountdown);
-//     gameScene.remove(boss); // Remove the boss
-//     document.getElementById("bossHealthBarContainer").style.display = "none";
-//   }
-//   // Re-initialize the scene
-
-//   // Restart animation loop
-//   animate();
- 
-// }
-
-
 function restartGame() {
   console.log("Restarting game...");
 
@@ -1760,8 +1556,8 @@ const powerUpModels = [
   { name: 'changeposition', model: 'potion_for_media__motion.glb' }
 ];
 
-// GLTF Loader
-let model;
+
+
 
 // Create Power-Ups
 function createPowerUps() {

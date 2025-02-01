@@ -906,7 +906,7 @@ function startBossMode() {
   bossStartTime = Date.now();
 
   // Set up the boss mode timer and countdown
-  let timeRemaining =   80; // 5 minutes in seconds
+  let timeRemaining =   200; // 5 minutes in seconds
 
   // Show the Boss Timer UI (dynamically created earlier in JS)
   bossTimerUI.style.display = "block";
@@ -925,7 +925,7 @@ function startBossMode() {
   // Also set a safety timeout to end boss mode after 5 minutes
   bossModeTimer = setTimeout(() => {
     if (!gameOver) endBossMode();
-  }, 80000); // 300,000 ms = 5 minutes
+  }, 200000); // 300,000 ms = 5 minutes
 }
 
 

@@ -628,7 +628,7 @@ const minZDistance = 40; // Adjust for gameplay difficulty
 // List of models for obstacles
 const obstacleModels = [
   'royal_59_free__warhavoc_survival_car_pack.glb',
-  'twisted_metal_harbor_city_thumper_remake.glb'
+
 
 
   // Add paths to more models as needed
@@ -1040,7 +1040,7 @@ function startBossShooting() {
 
 
 function checkBossTrigger() {
-  if (distanceTraveled >= 10000 && !bossActive && !bossModeCompleted) 
+  if (distanceTraveled >= 5000 && !bossActive && !bossModeCompleted) 
     {
       startBossMode();
     }

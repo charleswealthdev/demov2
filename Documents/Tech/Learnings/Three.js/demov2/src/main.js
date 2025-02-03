@@ -1040,7 +1040,7 @@ function startBossShooting() {
 
 
 function checkBossTrigger() {
-  if (distanceTraveled >= 1000 && !bossActive && !bossModeCompleted) 
+  if (distanceTraveled >= 10000 && !bossActive && !bossModeCompleted) 
     {
       startBossMode();
     }

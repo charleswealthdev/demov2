@@ -2,27 +2,22 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
-import gsap from 'gsap'; 
-// Get DOM elemen
-// Setup Renderer
+import gsap from 'gsap';
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 
+// Setup Renderer
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);  // Initial size based on window size
-renderer.setPixelRatio(window.devicePixelRatio);  // Adjust pixel ratio for better quality on high-density screens
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
 document.body.appendChild(renderer.domElement);
 
 // Handle window resizing
 window.addEventListener('resize', onWindowResize, false);
 
 function onWindowResize() {
-  // Update renderer size
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  
-  // Update camera aspect ratio and projection matrix
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  
-  // Optionally update other things like light intensity, etc.
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
 }
 
 // Scenes and Cameras
@@ -32,999 +27,900 @@ const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerH
 camera.position.set(0, 2, 5);
 
 // Lighting
-
-
-const light = new THREE.AmbientLight(0xffffff, 1);  // Ambient light for general illumination
+const light = new THREE.AmbientLight(0xffffff, 1);
 mainMenuScene.add(light);
 
-const directionalLight = new THREE.DirectionalLight(0xffffff, 1); // Directional light for shadows
+const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
 directionalLight.position.set(5, 10, 5);
 mainMenuScene.add(directionalLight);
 mainMenuScene.add(light);
-gameScene.add(light.clone()); // Add light to the game scene
+gameScene.add(light.clone());
 
-
-
-
-
-
-
+// Loaders
 const loadingManager = new THREE.LoadingManager();
-
 const textureLoader = new THREE.TextureLoader(loadingManager);
 const gltfLoader = new GLTFLoader(loadingManager);
 const dracoLoader = new DRACOLoader(loadingManager);
+dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/');
+gltfLoader.setDRACOLoader(dracoLoader);
 const listener = new THREE.AudioListener();
 const backgroundMusic = new THREE.Audio(listener);
-
-const sound = new THREE.Audio(listener);
 const audioLoader = new THREE.AudioLoader(loadingManager);
+const rgbeLoader = new RGBELoader(loadingManager);
 
-// Show loading screen while assets are loading
-loadingManager.onStart = () => {
-};
-
-// When all assets are loaded
+// Loading Screen
 loadingManager.onLoad = () => {
     console.log('All assets loaded');
     const preloader = document.getElementById('preloader');
-    preloader.style.display = 'none'; // Hide preloader
-
-   
+    preloader.style.display = 'none';
 };
-
 
 const progressBar = document.querySelector('#progress-bar');
-// Track loading progress
 loadingManager.onProgress = (url, itemsLoaded, itemsTotal) => {
-  if (progressBar) {
-    // console.log(`Loaded ${itemsLoaded} of ${itemsTotal} files: ${url}`);
-    const progress = (itemsLoaded / itemsTotal) * 100;
-  
-    document.getElementById('progress-bar').style.width = `${progress}%`;
-
-      progressBar.style.width = `${progress}%`; // Update the progress bar width
+    if (progressBar) {
+        const progress = (itemsLoaded / itemsTotal) * 100;
+        document.getElementById('progress-bar').style.width = `${progress}%`;
     } else {
-      console.warn('Progress bar element is not found.');
+        console.warn('Progress bar element is not found.');
     }
-   
 };
 
-// Handle loading errors
 loadingManager.onError = (url) => {
-    // console.error(`There was an error loading ${url}`);
+    console.error(`Error loading ${url}`);
 };
 
+// Function to load and apply HDRI
+function applyHDRI(scene, hdriPath) {
+    rgbeLoader.load(hdriPath, (texture) => {
+        texture.mapping = THREE.EquirectangularReflectionMapping;
+        scene.environment = texture;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.0;
+        console.log(`HDRI loaded for ${scene.name || 'scene'}`);
+    }, undefined, (error) => {
+        console.error('Error loading HDRI:', error);
+    });
+}
 
-// Ground Plane (for Main Menu)
-// const groundGeo = new THREE.PlaneGeometry(50, 50);
-// const groundMat = new THREE.MeshStandardMaterial({ color: 0x555555 });
-// const ground = new THREE.Mesh(groundGeo, groundMat);
-// ground.rotation.x = -Math.PI / 2;
-// mainMenuScene.add(ground);
+// Apply HDRI to scenes
+applyHDRI(mainMenuScene, 'beach_parking_1k.hdr');
+mainMenuScene.name = 'MainMenu';
+applyHDRI(gameScene, 'beach_parking_1k.hdr');
+gameScene.name = 'GameScene';
 
-// Main Menu Model
+function enableEnvMap(model) {
+    model.traverse((child) => {
+        if (child.isMesh && child.material) {
+            child.material.envMapIntensity = 1.0;
+            child.material.needsUpdate = true;
+        }
+    });
+}
 
-let menuModel;
-let menuBG
+// Sky dome and fog
+const skyGeometry = new THREE.SphereGeometry(500, 32, 32);
+const skyMaterial = new THREE.ShaderMaterial({
+    uniforms: {
+        topColor: { value: new THREE.Color(0xffa07a) },
+        horizonColor: { value: new THREE.Color(0xffe4b5) },
+        bottomColor: { value: new THREE.Color(0x87ceeb) },
+        offsetTop: { value: 0.6 },
+        offsetBottom: { value: 0.2 },
+    },
+    vertexShader: `
+        varying vec3 vWorldPosition;
+        void main() {
+            vWorldPosition = (modelMatrix * vec4(position, 1.0)).xyz;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    `,
+    fragmentShader: `
+        uniform vec3 topColor;
+        uniform vec3 horizonColor;
+        uniform vec3 bottomColor;
+        uniform float offsetTop;
+        uniform float offsetBottom;
+        varying vec3 vWorldPosition;
+        void main() {
+            float h = normalize(vWorldPosition).y;
+            float mixBottom = smoothstep(-1.0, offsetBottom, h);
+            float mixTop = smoothstep(offsetBottom, offsetTop, h);
+            vec3 color = mix(bottomColor, horizonColor, mixBottom);
+            color = mix(color, topColor, mixTop);
+            gl_FragColor = vec4(color, 1.0);
+        }
+    `,
+    side: THREE.BackSide,
+});
 
+const skyDome = new THREE.Mesh(skyGeometry, skyMaterial);
+mainMenuScene.add(skyDome);
+gameScene.add(skyDome.clone());
 
-let character, mixer, actions = {};
-dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/'); 
-// Attach DracoLoader to GLTFLoader
-gltfLoader.setDRACOLoader(dracoLoader);
+mainMenuScene.fog = new THREE.Fog(0x87ceeb, 50, 200);
+gameScene.fog = new THREE.Fog(0x87ceeb, 50, 200);
 
-
+// Main Menu Models
+let menuModel, menuBG, character, mixer, actions = {};
 
 gltfLoader.load('runestone.glb', (gltf) => {
-  menuBG = gltf.scene;
-  menuBG.scale.set(1,1,1
-  );
-  menuBG.position.set(0, 0, 0);
-  mainMenuScene.add(menuBG);
+    menuBG = gltf.scene;
+    menuBG.scale.set(1, 1, 1);
+    menuBG.position.set(0, 0, 0);
+    mainMenuScene.add(menuBG);
+    enableEnvMap(menuBG);
 });
 
 gltfLoader.load('avatarland.glb', (gltf) => {
-  menuModel = gltf.scene;
-  menuModel.scale.set(0.9, 0.9, 0.9);
-  menuModel.position.set(0, 0.7, 3);
-  mainMenuScene.add(menuModel);
-
-  
-    // Animation setup
-    // mixer = new THREE.AnimationMixer(menuModel);
-    // gltf.animations.forEach((clip) => {
-    //   actions[clip.name.toLowerCase()] = mixer.clipAction(clip);
-    //   console.log(mixer, clip)
-    // });
-  
-    // if (actions['armature|mixamo.com|layer0']) {
-    //   actions['armature|mixamo.com|layer0'].play();
-    // }
+    menuModel = gltf.scene;
+    menuModel.scale.set(0.9, 0.9, 0.9);
+    menuModel.position.set(0, 0.7, 3);
+    mainMenuScene.add(menuModel);
+    enableEnvMap(menuModel);
 });
-// Buttons for Main Menu
+
+
+let highScore = localStorage.getItem('highScore') ? parseInt(localStorage.getItem('highScore')) : 0;
+
+// Main Menu Buttons
 const startButton = document.createElement('button');
 startButton.textContent = 'Start Game';
 Object.assign(startButton.style, {
-  position: 'absolute',
-  top: '40%',
-  left: '50%',
-  transform: 'translate(-50%, -50%)',
-  padding: '15px 30px',
-  fontSize: '18px',
-  cursor: 'pointer',
-  backgroundColor: 'transparent', // Transparent background
-  border: '2px solid white', // Optional: border for visibility
-  color: 'white', // Text color
-  borderRadius: '8px', // Optional: rounded corners
-  outline: 'none', // Removes focus outline
-  transition: 'background-color 0.3s, color 0.3s', // Smooth hover effect
+    position: 'absolute',
+    top: '40%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    padding: '15px 30px',
+    fontSize: '18px',
+    cursor: 'pointer',
+    backgroundColor: 'transparent',
+    border: '2px solid white',
+    color: 'white',
+    borderRadius: '8px',
+    outline: 'none',
+    transition: 'background-color 0.3s, color 0.3s',
 });
 
 const musicButton = document.createElement('button');
 musicButton.textContent = 'Music: Off';
 Object.assign(musicButton.style, {
-  position: 'absolute',
-  top: '10%',
-  left: '5%',
-  padding: '10px 20px',
-  fontSize: '14px',
-  cursor: 'pointer',
-  backgroundColor: 'transparent', // Transparent background
-  border: '2px solid white', // Visible border
-  color: 'white', // Text color
-  borderRadius: '8px', // Rounded corners
-  outline: 'none',
-  transition: 'background-color 0.3s, color 0.3s', // Smooth transition
+    position: 'absolute',
+    top: '10%',
+    left: '5%',
+    padding: '10px 20px',
+    fontSize: '14px',
+    cursor: 'pointer',
+    backgroundColor: 'transparent',
+    border: '2px solid white',
+    color: 'white',
+    borderRadius: '8px',
+    outline: 'none',
+    transition: 'background-color 0.3s, color 0.3s',
 });
-// Help Button
+
 const helpButton = document.createElement('button');
 helpButton.textContent = 'Help';
 Object.assign(helpButton.style, {
-  position: 'absolute',
-  top: '70%',
-  left: '50%',
-  transform: 'translate(-50%, -50%)',
-  padding: '15px 30px',
-  fontSize: '18px',
-  cursor: 'pointer',
-  background: 'transparent',
-  border: '2px solid white',
-  color: 'white',
-  borderRadius: '10px',
-  zIndex: 1000, // Ensure it's above other elements
+    position: 'absolute',
+    top: '70%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    padding: '15px 30px',
+    fontSize: '18px',
+    cursor: 'pointer',
+    background: 'transparent',
+    border: '2px solid white',
+    color: 'white',
+    borderRadius: '10px',
+    zIndex: 1000,
 });
 document.body.appendChild(helpButton);
+
+// Main Menu High Score Display (Updated with blending, right side, and image)
+const mainMenuHighScoreContainer = document.createElement('div');
+mainMenuHighScoreContainer.id = 'mainMenuHighScoreContainer';
+Object.assign(mainMenuHighScoreContainer.style, {
+    position: 'absolute',
+    top: '10px',
+    right: '10px',
+    display: 'flex',
+    alignItems: 'center',
+    background: 'rgba(255, 255, 255, 0.2)', // Blending effect, semi-transparent white
+    padding: '8px 12px',
+    borderRadius: '8px',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+    zIndex: '1000',
+});
+
+const highScoreIcon = document.createElement('img');
+highScoreIcon.src = 'https://img.icons8.com/?size=100&id=JIHcx48yhK29&format=png&color=000000';
+highScoreIcon.style.width = '25px';
+highScoreIcon.style.height = '25px';
+highScoreIcon.style.marginRight = '8px';
+mainMenuHighScoreContainer.appendChild(highScoreIcon);
+
+const mainMenuHighScoreText = document.createElement('span');
+mainMenuHighScoreText.id = 'mainMenuHighScoreText';
+mainMenuHighScoreText.innerHTML = `${highScore}`;
+mainMenuHighScoreText.style.color = '#87ceeb'; // Matches sky dome bottom color for blending
+mainMenuHighScoreText.style.fontSize = '18px';
+mainMenuHighScoreText.style.fontFamily = 'Arial, sans-serif';
+mainMenuHighScoreContainer.appendChild(mainMenuHighScoreText);
+
+document.body.appendChild(mainMenuHighScoreContainer);
+
+function updateMainMenuHighScorePosition() {
+    // No need for dynamic position adjustment since it's fixed at top-right
+}
+
+// Pause Button for Game Scene
+const pauseButton = document.createElement('button');
+pauseButton.textContent = 'Pause Game';
+Object.assign(pauseButton.style, {
+    position: 'absolute',
+    top: '10px',
+    right: '10px',
+    padding: '10px 20px',
+    fontSize: '14px',
+    cursor: 'pointer',
+    backgroundColor: 'transparent',
+    border: '2px solid white',
+    color: 'white',
+    borderRadius: '8px',
+    outline: 'none',
+    transition: 'background-color 0.3s, color 0.3s',
+    display: 'none',
+});
+document.body.appendChild(pauseButton);
 
 // Modal Elements
 const modal = document.createElement('div');
 Object.assign(modal.style, {
-  position: 'fixed',
-  top: '50%',
-  left: '50%',
-  transform: 'translate(-50%, -50%) scale(0)',
-  padding: '20px',
-  width: '80%',
-  maxWidth: '400px',
-  background: '#333',
-  color: 'white',
-  borderRadius: '10px',
-  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
-  textAlign: 'center',
-  transition: 'transform 0.3s ease',
-  zIndex: 1001, // Ensure it's above other elements
+    position: 'fixed',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%) scale(0)',
+    padding: '20px',
+    width: '80%',
+    maxWidth: '400px',
+    background: '#333',
+    color: 'white',
+    borderRadius: '10px',
+    boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+    textAlign: 'center',
+    transition: 'transform 0.3s ease',
+    zIndex: 1001,
 });
 document.body.appendChild(modal);
 
 const modalTitle = document.createElement('h2');
 modalTitle.id = 'modal-title';
 Object.assign(modalTitle.style, {
-  marginBottom: '15px',
-  fontSize: '24px',
+    marginBottom: '15px',
+    fontSize: '24px',
 });
 modal.appendChild(modalTitle);
 
 const modalContent = document.createElement('div');
 modalContent.id = 'modal-content';
 Object.assign(modalContent.style, {
-  fontSize: '16px',
-  lineHeight: '1.6',
+    fontSize: '16px',
+    lineHeight: '1.6',
 });
 modal.appendChild(modalContent);
 
 const closeButton = document.createElement('button');
 closeButton.textContent = 'Close';
 Object.assign(closeButton.style, {
-  marginTop: '20px',
-  padding: '10px 20px',
-  fontSize: '16px',
-  cursor: 'pointer',
-  background: '#555',
-  border: 'none',
-  color: 'white',
-  borderRadius: '5px',
+    marginTop: '20px',
+    padding: '10px 20px',
+    fontSize: '16px',
+    cursor: 'pointer',
+    background: '#555',
+    border: 'none',
+    color: 'white',
+    borderRadius: '5px',
 });
 modal.appendChild(closeButton);
 
-// Overlay
+// Pause Modal Elements
+const pauseModal = document.createElement('div');
+Object.assign(pauseModal.style, {
+    position: 'fixed',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%) scale(0)',
+    padding: '20px',
+    width: '80%',
+    maxWidth: '300px',
+    background: 'rgba(51, 51, 51, 0.7)', // Transparent background
+    color: 'white',
+    borderRadius: '10px',
+    boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+    textAlign: 'center',
+    transition: 'transform 0.3s ease',
+    zIndex: 1001,
+    display: 'none',
+});
+document.body.appendChild(pauseModal);
+
+const pauseModalTitle = document.createElement('h2');
+pauseModalTitle.textContent = 'Paused';
+Object.assign(pauseModalTitle.style, {
+    marginBottom: '10px',
+    fontSize: '24px',
+});
+pauseModal.appendChild(pauseModalTitle);
+
+const pauseHighScore = document.createElement('div');
+pauseHighScore.id = 'pauseHighScore';
+pauseHighScore.innerHTML = `High Score: ${highScore}`;
+Object.assign(pauseHighScore.style, {
+    fontSize: '18px',
+    color: '#ff9800',
+    marginBottom: '15px',
+});
+pauseModal.appendChild(pauseHighScore);
+
+const resumeButton = document.createElement('button');
+resumeButton.textContent = 'Resume Game';
+Object.assign(resumeButton.style, {
+    marginTop: '20px',
+    padding: '10px 20px',
+    fontSize: '16px',
+    cursor: 'pointer',
+    background: '#4caf50',
+    border: 'none',
+    color: 'white',
+    borderRadius: '5px',
+});
+pauseModal.appendChild(resumeButton);
+
 const overlay = document.createElement('div');
 Object.assign(overlay.style, {
-  position: 'fixed',
-  top: 0,
-  left: 0,
-  width: '100%',
-  height: '100%',
-  background: 'rgba(0, 0, 0, 0.5)',
-  display: 'none',
-  zIndex: 1000, // Ensure it's behind the modal
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    background: 'rgba(0, 0, 0, 0.5)',
+    display: 'none',
+    zIndex: 1000,
 });
 document.body.appendChild(overlay);
 
-// Show Modal Function
+// Modal Functions
 function showModal(title, content) {
-  modalTitle.textContent = title;
-  modalContent.innerHTML = content;
-
-  modal.style.transform = 'translate(-50%, -50%) scale(1)';
-  overlay.style.display = 'block';
+    modalTitle.textContent = title;
+    modalContent.innerHTML = content;
+    modal.style.transform = 'translate(-50%, -50%) scale(1)';
+    overlay.style.display = 'block';
 }
 
-// Hide Modal Function
 function hideModal() {
-  modal.style.transform = 'translate(-50%, -50%) scale(0)';
-  overlay.style.display = 'none';
+    modal.style.transform = 'translate(-50%, -50%) scale(0)';
+    overlay.style.display = 'none';
 }
 
-// Event Listeners
+// Pause/Resume Functions
+let isPaused = false;
+
+function pauseGame() {
+    isPaused = true;
+    pauseModal.style.display = 'block';
+    pauseModal.style.transform = 'translate(-50%, -50%) scale(1)';
+    overlay.style.display = 'block';
+    pauseButton.style.display = 'none';
+    pauseHighScore.innerHTML = `High Score: ${highScore}`;
+    if (isMusicPlaying) {
+        gameSceneMusic.pause();
+        bossmodeMusic.pause();
+    }
+}
+
+function resumeGame() {
+    isPaused = false;
+    pauseModal.style.transform = 'translate(-50%, -50%) scale(0)';
+    pauseModal.style.display = 'none';
+    overlay.style.display = 'none';
+    pauseButton.style.display = 'block';
+    clock.start();
+    if (isMusicPlaying) {
+        if (bossActive) bossmodeMusic.play();
+        else gameSceneMusic.play();
+    }
+}
+
 helpButton.addEventListener('click', () => {
-  showModal(
-    'Help',
-    `
-      <p><strong>Welcome, survivor!</strong> Here's what you need to know:</p>
-      <ul style="text-align: left; margin: 10px 0 20px 0; padding-left: 20px;">
-        <li>Use <strong>arrow keys on PC</strong> or the <strong>joystick on Mobile</strong> to move your character.</li>
-        <li><strong>Collect coins</strong> to increase your value-don’t miss any!</li>
-        <li><strong>Avoid cars</strong> like your life depends on it</li>
-        <li>Press <strong>Button X or key S on PC</strong> to activate your shield and gain power over the cars for a limited time.</li>
-        <li>Press <strong>Button O or key P on PC</strong> to disappear and reappear in a random safe spot.</li>
-      </ul>
-      <p>Whatever you do, stay alive! The longer you survive, the higher your score. Good luck!</p>
-    `
-  );
+    showModal(
+        'Help',
+        `
+            <p><strong>Welcome, survivor!</strong> Here's what you need to know:</p>
+            <ul style="text-align: left; margin: 10px 0 20px 0; padding-left: 20px;">
+                <li>Use <strong>arrow keys on PC</strong> or the <strong>joystick on Mobile</strong> to move your character.</li>
+                <li>Press <strong>Spacebar on PC</strong> or <strong>J button on Mobile</strong> to jump over cars.</li>
+                <li><strong>Collect coins</strong> to increase your value—don’t miss any!</li>
+                <li><strong>Avoid cars</strong> like your life depends on it</li>
+                <li>Press <strong>Button X or key S on PC</strong> to activate your shield.</li>
+                <li>Press <strong>Button O or key P on PC</strong> to teleport to a random safe spot.</li>
+            </ul>
+            <p>Stay alive! The longer you survive, the higher your score. Good luck!</p>
+        `
+    );
 });
 
 overlay.addEventListener('click', hideModal);
 closeButton.addEventListener('click', hideModal);
-
-// Close Modal Event Listener
-
+pauseButton.addEventListener('click', pauseGame);
+resumeButton.addEventListener('click', resumeGame);
 
 // Audio Setup
-// const gameMusic = new Audio('action-loop-g-100-bpm-brvhrtz-226161.mp3'); // Replace with your music file path
-// gameMusic.loop = true; // Loop the music for continuous play
-// gameMusic.volume=0.15  
-// Music Toggle Functionality
 let isMusicPlaying = false;
-
-// Audio Setup
-const mainMenuMusic = new Audio('drone-high-tension-and-suspense-background-162365.mp3'); // Replace with your main menu music file path
-const gameSceneMusic = new Audio('adrenaline-roger-gabalda-main-version-02-23-11021.mp3'); // Replace with your game scene music file path
+const mainMenuMusic = new Audio('drone-high-tension-and-suspense-background-162365.mp3');
+const gameSceneMusic = new Audio('adrenaline-roger-gabalda-main-version-02-23-11021.mp3');
 const bossmodeMusic = new Audio('FastMix-2022-03-16_-_Escape_Route_-_www.FesliyanStudios.com_.mp3');
-// Music properties
 mainMenuMusic.loop = true;
-mainMenuMusic.volume = 0.15;
-
+mainMenuMusic.volume = 0.1;
 gameSceneMusic.loop = true;
-gameSceneMusic.volume = 0.15;
-
+gameSceneMusic.volume = 0.13;
 bossmodeMusic.loop = true;
-bossmodeMusic.volume = 0.25;
-
+bossmodeMusic.volume = 0.15;
 
 musicButton.addEventListener('click', () => {
-  if (isMusicPlaying) {
-    mainMenuMusic.pause();
-    gameSceneMusic.pause();
-    musicButton.textContent = 'Music: Off';
-  } else {
-    // Play the appropriate music for the current scene
-    if (currentScene === 'mainMenu') {
-      mainMenuMusic.play();
-    } else if (currentScene === 'gameScene') {
-      gameSceneMusic.play();
+    if (isMusicPlaying) {
+        mainMenuMusic.pause();
+        gameSceneMusic.pause();
+        bossmodeMusic.pause();
+        musicButton.textContent = 'Music: Off';
+    } else {
+        if (currentScene === 'mainMenu') mainMenuMusic.play();
+        else if (currentScene === 'gameScene') gameSceneMusic.play();
+        musicButton.textContent = 'Music: On';
     }
-    musicButton.textContent = 'Music: On';
-  }
-  isMusicPlaying = !isMusicPlaying; // Toggle the music state
+    isMusicPlaying = !isMusicPlaying;
 });
-
-// Add the button to the DOM
 document.body.appendChild(musicButton);
 
-// // Scene-Specific Music Management
-// function updateMusic() {
-//   if (!isMusicPlaying) return; // Skip if music is toggled off
-
-//   if (currentScene === 'mainMenu') {
-//     if (!mainMenuMusic.paused) return; // Avoid restarting the same music
-//     gameSceneMusic.pause();
-//     gameSceneMusic.currentTime = 0;
-//     mainMenuMusic.play();
-//   } else if (currentScene === 'gameScene') {
-//     if (!gameSceneMusic.paused) return; // Avoid restarting the same music
-//     mainMenuMusic.pause();
-//     mainMenuMusic.currentTime = 0;
-//     gameSceneMusic.play();
-//   }
-// }
-
 function updateMusic() {
-  if (!isMusicPlaying) return; // Skip if music is toggled off
-
-  // Check if boss mode is active. If so, play boss mode music.
-  if (bossActive) {
-    if (bossmodeMusic.paused) {
-      // Pause other music and reset their times
-      if (!gameSceneMusic.paused) {
+    if (!isMusicPlaying) return;
+    if (bossActive) {
+        if (bossmodeMusic.paused) {
+            gameSceneMusic.pause();
+            gameSceneMusic.currentTime = 0;
+            mainMenuMusic.pause();
+            mainMenuMusic.currentTime = 0;
+            bossmodeMusic.play();
+        }
+        return;
+    }
+    if (currentScene === 'mainMenu') {
+        if (!mainMenuMusic.paused) return;
         gameSceneMusic.pause();
         gameSceneMusic.currentTime = 0;
-      }
-      if (!mainMenuMusic.paused) {
+        mainMenuMusic.play();
+    } else if (currentScene === 'gameScene') {
+        if (!gameSceneMusic.paused) return;
         mainMenuMusic.pause();
         mainMenuMusic.currentTime = 0;
-      }
-      bossmodeMusic.play();
+        gameSceneMusic.play();
     }
-    return; // Boss mode is active; exit here.
-  }
-
-  // Otherwise, proceed as before:
-  if (currentScene === 'mainMenu') {
-    if (!mainMenuMusic.paused) return; // Avoid restarting the same music
-    gameSceneMusic.pause();
-    gameSceneMusic.currentTime = 0;
-    mainMenuMusic.play();
-  } else if (currentScene === 'gameScene') {
-    if (!gameSceneMusic.paused) return; // Avoid restarting the same music
-    mainMenuMusic.pause();
-    mainMenuMusic.currentTime = 0;
-    gameSceneMusic.play();
-  }
 }
 
-
-
 startButton.addEventListener('mouseenter', () => {
-  startButton.style.backgroundColor = 'white';
-  startButton.style.color = 'black';
+    startButton.style.backgroundColor = 'white';
+    startButton.style.color = 'black';
 });
 startButton.addEventListener('mouseleave', () => {
-  startButton.style.backgroundColor = 'transparent';
-  startButton.style.color = 'white';
+    startButton.style.backgroundColor = 'transparent';
+    startButton.style.color = 'white';
 });
-
 document.body.appendChild(startButton);
 
 // Game Scene Setup
-
-
-
-
-
 gltfLoader.load('myavatar.glb', (gltf) => {
-  character = gltf.scene;
-  character.scale.set(1.4, 1.4, 1.4);
-  character.position.set(0, 0, 0);
-  character.rotation.y = Math.PI;
-  gameScene.add(character);
-  updateModelSize();
-  
-    // Animation setup
+    character = gltf.scene;
+    character.scale.set(1.3, 1.3, 1.3);
+    character.position.set(0, 0, 0);
+    character.rotation.y = Math.PI;
+    gameScene.add(character);
+    enableEnvMap(character);
+    updateModelSize();
+
     mixer = new THREE.AnimationMixer(character);
     gltf.animations.forEach((clip) => {
-      actions[clip.name.toLowerCase()] = mixer.clipAction(clip);
-      console.log(mixer, clip)
+        actions[clip.name.toLowerCase()] = mixer.clipAction(clip);
     });
-  
     if (actions['armature|mixamo.com|layer0']) {
-      actions['armature|mixamo.com|layer0'].play();
+        actions['armature|mixamo.com|layer0'].play();
     }
 });
 
+const textureTest = textureLoader.load('/highway-lanes-unity/highway-lanes-unity/highway-lanes_albedo.png');
+const textureNormal = textureLoader.load('/highway-lanes-unity/highway-lanes-unity/highway-lanes_normal-ogl.png');
+const textureM = textureLoader.load('/highway-lanes-unity/highway-lanes-unity/highway-lanes_ao.png');
+const textureR = textureLoader.load('/highway-lanes-unity/highway-lanes-unity/highway-lanes_preview.jpg');
 
-
-
-
-
-const textureTest = textureLoader.load('/luxury-vinyl-plank-light-ue/luxury-vinyl-plank-light-ue/luxury-vinyl-plank_light_albedo.png')
-const textureNormal = textureLoader.load('/luxury-vinyl-plank-light-ue/luxury-vinyl-plank-light-ue/luxury-vinyl-plank_light_ao.png')
-const textureM = textureLoader.load('/luxury-vinyl-plank-light-ue/luxury-vinyl-plank-light-ue/luxury-vinyl-plank_light_height.png')
-const textureR = textureLoader.load('/luxury-vinyl-plank-light-ue/luxury-vinyl-plank-light-ue/luxury-vinyl-plank_light_preview.jpg')
-
-
-// Constants
-const groundWidth = 50;
+const groundWidth = 60;
 const groundLength = 50;
-const groundCount = 3; // Number of ground tiles
+const groundCount = 3;
 const tileSpacing = groundLength;
-let speed = 0.45
-const speedIncrement = 0.1; // Increment for difficulty
-const maxGameSpeed = 1.2; // Maximum speed for the game
+let speed = 0.5;
+const speedIncrement = 0.1;
+const maxGameSpeed = 1.3;
 const milestoneDistance = 1000;
 
 const groundMaterial = new THREE.MeshStandardMaterial({
-  map: textureTest, 
-  normalMap: textureNormal,
-  roughnessMap: textureR,
-  side: THREE.DoubleSide,
-  aoMap: textureM,
+    map: textureTest,
+    normalMap: textureNormal,
+    roughnessMap: textureR,
+    side: THREE.DoubleSide,
+    aoMap: textureM,
     metalness: 0.7,
 });
 
-
-let treeModel = null;
-let buildingModel = null;
+let treeModel = null, buildingModel = null;
 const tileGroups = [];
-let tilesReady = false; 
+let tilesReady = false;
 
 function loadModel(path, callback) {
-  gltfLoader.load(
-    path,
-    (gltf) => {
-      const model = gltf.scene;
-      callback(model);
-    },
-    undefined,
-    (error) => {
-      console.error(`An error occurred while loading the model from ${path}:`, error);
-      callback(null); // Pass null if loading fails
-    }
-  );
+    gltfLoader.load(path, (gltf) => callback(gltf.scene), undefined, (error) => {
+        console.error(`Error loading ${path}:`, error);
+        callback(null);
+    });
 }
 
 function loadAssets(callback) {
-  let assetsLoaded = 0;
-
-  const checkAssetsLoaded = () => {
-    assetsLoaded++;
-    if (assetsLoaded === 2) {
-      callback(); // Proceed once both models are loaded
-    }
-  };
-
-  loadModel('trees_and_bush_pack_lowpoly.glb', (model) => {
-    treeModel = model;
-    checkAssetsLoaded();
-  });
-
-  loadModel('realistic_palm_tree_free.glb', (model) => {
-    buildingModel = model;
-    checkAssetsLoaded()  ;
-  });
+    let assetsLoaded = 0;
+    const checkAssetsLoaded = () => {
+        assetsLoaded++;
+        if (assetsLoaded === 2) callback();
+    };
+    loadModel('realistic_chicago_buildings.glb', (model) => {
+        treeModel = model;
+        checkAssetsLoaded();
+    });
+    loadModel('realistic_palm_tree_free.glb', (model) => {
+        buildingModel = model;
+        checkAssetsLoaded();
+    });
 }
 
-function createTree(scale = 0.25) {
-  if (!treeModel) {
-    console.error('Tree model is not loaded yet.');
-    return new THREE.Group(); // Return an empty placeholder
-  }
-  const treeInstance = treeModel.clone();
-  treeInstance.scale.set(scale, scale, scale);
-  treeInstance.castShadow = true;
-  treeInstance.receiveShadow = true;
-  return treeInstance;
+function createTree(scale = 0.085) {
+    if (!treeModel) return new THREE.Group();
+    const treeInstance = treeModel.clone();
+    treeInstance.scale.set(scale, scale, scale);
+    treeInstance.castShadow = true;
+    treeInstance.receiveShadow = true;
+    return treeInstance;
 }
 
-function createBuilding(scale = 3) {
-  if (!buildingModel) {
-    console.error('Building model is not loaded yet.');
-    return new THREE.Group(); // Return an empty placeholder
-  }
-  const buildingInstance = buildingModel.clone();
-  buildingInstance.scale.set(scale, scale, scale);
-  buildingInstance.castShadow = true;
-  buildingInstance.receiveShadow = true;
-  return buildingInstance;
+function createBuilding(scale = 1.4) {
+    if (!buildingModel) return new THREE.Group();
+    const buildingInstance = buildingModel.clone();
+    buildingInstance.scale.set(scale, scale, scale);
+    buildingInstance.castShadow = true;
+    buildingInstance.receiveShadow = true;
+    return buildingInstance;
 }
 
 function createTile(zOffset) {
-  const tileGroup = new THREE.Group();
+    const tileGroup = new THREE.Group();
+    const groundGeo = new THREE.PlaneGeometry(groundWidth, groundLength);
+    const ground = new THREE.Mesh(groundGeo, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = 0;
+    ground.receiveShadow = true;
+    tileGroup.add(ground);
 
-  // Ground
-  const groundGeo = new THREE.PlaneGeometry(groundWidth, groundLength);
-  const ground = new THREE.Mesh(groundGeo, groundMaterial);
-  ground.rotation.x = -Math.PI / 2;
-  ground.position.y = 0;
-  ground.receiveShadow = true;
-  tileGroup.add(ground);
+    for (let z = -groundLength / 2; z < groundLength / 2; z += 10) {
+        const treeLeft = createTree();
+        treeLeft.position.set(-25, 0, z);
+        tileGroup.add(treeLeft);
+        const treeRight = createTree();
+        treeRight.position.set(20, 0, z);
+        tileGroup.add(treeRight);
+    }
 
-  // Trees
-  for (let z = -groundLength / 2; z < groundLength / 2; z += 10) {
-    const treeLeft = createTree();
-    treeLeft.position.set(-20, 0, z);
-    tileGroup.add(treeLeft);
+    for (let z = -groundLength / 2; z < groundLength / 2; z += 15) {
+        const buildingLeft = createBuilding();
+        buildingLeft.position.set(-30, 0, z);
+        tileGroup.add(buildingLeft);
+        const buildingRight = createBuilding();
+        buildingRight.position.set(30, 0, z);
+        tileGroup.add(buildingRight);
+    }
 
-    const treeRight = createTree();
-    treeRight.position.set(20, 0, z);
-    tileGroup.add(treeRight);
-  }
-
-  // Buildings
-  for (let z = -groundLength / 2; z < groundLength / 2; z += 15) {
-    const buildingLeft = createBuilding();
-    buildingLeft.position.set(-30, 0, z);
-    tileGroup.add(buildingLeft);
-
-    const buildingRight = createBuilding();
-    buildingRight.position.set(30, 0, z);
-    tileGroup.add(buildingRight);
-  }
-
-  tileGroup.position.z = zOffset;
-  return tileGroup;
+    tileGroup.position.z = zOffset;
+    return tileGroup;
 }
 
 function initializeScene() {
-  loadAssets(() => {
-    for (let i = 0; i < groundCount; i++) {
-      const zOffset = -i * tileSpacing;
-      const tile = createTile(zOffset);
-      gameScene.add(tile);
-      tileGroups.push(tile);
-    }
-    tilesReady = true; // Set the flag once tiles are ready
-  });
+    loadAssets(() => {
+        for (let i = 0; i < groundCount; i++) {
+            const zOffset = -i * tileSpacing;
+            const tile = createTile(zOffset);
+            gameScene.add(tile);
+            tileGroups.push(tile);
+        }
+        tilesReady = true;
+    });
 }
 
-// Update tiles for infinite scrolling
 function updateGround() {
-  if (!tilesReady) return; // Ensure tiles are loaded before updating
-
-  tileGroups.forEach((tile) => {
-    tile.position.z += speed;
-
-    // If the tile moves out of view, reposition it to the back
-    if (tile.position.z > tileSpacing) {
-      tile.position.z -= groundCount * tileSpacing;
-    }
-  });
+    if (!tilesReady) return;
+    tileGroups.forEach((tile) => {
+        tile.position.z += speed;
+        if (tile.position.z > tileSpacing) tile.position.z -= groundCount * tileSpacing;
+    });
 }
 
 let currentScene = 'mainMenu';
 let gameStarted = false;
 
 function switchToGameScene() {
-  currentScene = 'gameScene';
-  startButton.style.display = 'none'; // Hide main menu buttons
-  helpButton.style.display='none';
-  musicButton.style.display='none'
-  gameStarted = true
-  clock.start();
-  console.log('Switched to Game Scene');
-  // setupJoystick()
-  setupJoystick()
-  gamepad()
-  updateCameraPosition()
-  updateModelSize()
+    currentScene = 'gameScene';
+    startButton.style.display = 'none';
+    helpButton.style.display = 'none';
+    musicButton.style.display = 'none';
+    mainMenuHighScoreContainer.style.display = 'none';
+    pauseButton.style.display = 'block';
+    gameStarted = true;
+    clock.start();
+    setupJoystick();
+    gamepad();
+    updateCameraPosition();
+    updateModelSize();
 }
 
-startButton.addEventListener('click', () => {
-  switchToGameScene();
-});
+startButton.addEventListener('click', switchToGameScene);
 
-
-
-// Array to hold obstacles
+// Obstacles
 const obstacles = [];
+const maxObstacles = 1;
+const minZDistance = 40;
+const obstacleModels = ['royal_59_free__warhavoc_survival_car_pack.glb'];
 
-// Maximum number of active obstacles
-const maxObstacles = 1; // Adjust as needed for performance
+let boss, honkCooldown = false, bossActive = false, characterHealth = 100, bossHealth = 200;
+const bossProjectiles = [];
+let bossModeTimer, bossTimeCountdown, bossStartTime = false, bulletSpeed = 3, bossSpeed = 0.5;
+let muzzleFlashDuration = 100, bossMovementInterval, gameOverTriggered = false, bossModeCompleted = false;
 
-// Minimum distance between obstacles on the z-axis
-const minZDistance = 40; // Adjust for gameplay difficulty
-
-// GLTF Loader
-
-// List of models for obstacles
-const obstacleModels = [
-  'royal_59_free__warhavoc_survival_car_pack.glb',
-
-
-
-  // Add paths to more models as needed
-];
-
-let boss;
-let honkCooldown = false;
-let bossActive = false; // Is boss mode active?
-let characterHealth = 100;
-let bossHealth = 200;
-const bossProjectiles=[]
-let bossModeTimer;
-let bossTimeCountdown;
-let bossStartTime=false
-let bulletSpeed = 3;
-let bossSpeed = 0.5; // Boss movement speed
-
-let muzzleFlashDuration = 100; 
-let bossMovementInterval;
-let gameOverTriggered = false;
-let bossModeCompleted = false;
-// Function to create obstacles
 function createObstacles() {
-  if (bossActive) return;
-  if (obstacles.length >= maxObstacles) return;
+    if (bossActive || obstacles.length >= maxObstacles) return;
+    const selectedModel = obstacleModels[Math.floor(Math.random() * obstacleModels.length)];
+    gltfLoader.load(selectedModel, (gltf) => {
+        const model = gltf.scene;
+        model.scale.set(1.3, 1.3, 1.3);
+        model.position.set(
+            Math.random() * 10 - 5,
+            0.5,
+            obstacles.length > 0 ? obstacles[obstacles.length - 1].position.z - minZDistance : -20
+        );
+        model.traverse((child) => {
+            if (child.isMesh) {
+                child.castShadow = true;
+                child.receiveShadow = true;
+            }
+        });
+        gameScene.add(model);
+        obstacles.push(model);
+        updateModelSize();
 
-  // Randomly select a model from the list
-  const selectedModel = obstacleModels[Math.floor(Math.random() * obstacleModels.length)];
-
-  gltfLoader.load(
-    selectedModel,
-    (gltf) => {
-      const model = gltf.scene;
-
-      // Scale and position adjustments
-      model.scale.set(1.4, 1.4, 1.4);
-      model.position.set(
-        Math.random() * 10 - 5, // Random x position
-        0.5, // y position based on model size
-        obstacles.length > 0
-          ? obstacles[obstacles.length - 1].position.z - minZDistance
-          : -20 // Start far back on the z-axis
-      );
-
-      // Enable shadows
-      model.traverse((child) => {
-        if (child.isMesh) {
-          child.castShadow = true;
-          child.receiveShadow = true;
+        if (!honkCooldown) {
+            honkSound.play();
+            honkCooldown = true;
+            setTimeout(() => honkCooldown = false, 1000);
         }
-      });
-
-      // Add the model to the scene
-      gameScene.add(model);
-
-      // Store the obstacle
-      obstacles.push(model);
-      updateModelSize();
-
-
-  // Play honk sound if not on cooldown
-  if (!honkCooldown) {
-    honkSound.play();
-    honkCooldown = true;
-
-    // Reset cooldown after 1 second
-    setTimeout(() => {
-      honkCooldown = false;
-    }, 1000);
-  }
-
-      console.log(`Obstacle added: ${selectedModel}`); // Debugging output
-    },
-    undefined,
-    (error) => {
-      console.error(`Error loading model ${selectedModel}:`, error);
-    }
-  );
+    }, undefined, (error) => console.error(`Error loading ${selectedModel}:`, error));
 }
 
+// Sounds
+const explodeSound = new Audio("explosion-91872.mp3");
+const honkSound = new Audio("car-horn-beep-beep-two-beeps-honk-honk-6188.mp3");
+const honkLSound = new Audio("car-horn-1-189855.mp3");
+const collisionSound = new Audio("mixkit-car-window-breaking-1551.wav");
+const passingCarSound = new Audio("car-passing-105251.mp3");
+const powerUpSound = new Audio("coin-pickup-98269.mp3");
+const powerUpActiveSound = new Audio("mixkit-electronics-power-up-2602.wav");
+const powerUpEndSound = new Audio("power-up-end.mp3");
+const shootSound = new Audio("pistol-shot-233473.mp3");
+const hitSound = new Audio("young-man-being-hurt-95628.mp3");
 
-  // Load sounds
-  const explodeSound = new Audio("explosion-91872.mp3");
-  const honkSound = new Audio("car-horn-beep-beep-two-beeps-honk-honk-6188.mp3");
-  const honkLSound = new Audio("car-horn-1-189855.mp3");
-  const collisionSound = new Audio("mixkit-car-window-breaking-1551.wav");
-  const passingCarSound = new Audio("car-passing-105251.mp3");
-  const powerUpSound = new Audio("coin-pickup-98269.mp3");
-  const powerUpActiveSound = new Audio("mixkit-electronics-power-up-2602.wav");
-  const powerUpEndSound = new Audio("power-up-end.mp3");
-  const shootSound = new Audio("pistol-shot-233473.mp3");
-  const hitSound = new Audio("young-man-being-hurt-95628.mp3");
-  
-  function playShootSound() {
-      shootSound.play();
-  }
-  
-  function playHitSound() {
-      hitSound.play();
-  }
-  // Volume levels
-  honkSound.volume = 0.6;
-  collisionSound.volume = 0.8;
-  passingCarSound.volume = 0.5;
-  powerUpSound.volume = 0.7;
-  powerUpActiveSound.volume = 0.5;
-  powerUpEndSound.volume = 0.6;
-explodeSound.volume=0.8;
-hitSound.volume=0.5;
-shootSound.volume=0.4
-  
-  
+function playShootSound() { shootSound.play(); }
+function playHitSound() { hitSound.play(); }
 
-  function handleCollision() {
-    collisionSound.play();
-  }
+honkSound.volume = 0.6;
+collisionSound.volume = 0.8;
+passingCarSound.volume = 0.5;
+powerUpSound.volume = 0.7;
+powerUpActiveSound.volume = 0.5;
+powerUpEndSound.volume = 0.6;
+explodeSound.volume = 0.8;
+hitSound.volume = 0.5;
+shootSound.volume = 0.4;
 
-  
-// Function to detect collision between the player and an obstacle
+function handleCollision() { collisionSound.play(); }
+
 function detectCollisionwithCars(character, obstacles) {
-
-
-  const playerBox = new THREE.Box3().setFromObject(character); // Player bounding box
-  const obstacleBox = new THREE.Box3().setFromObject(obstacles); // Obstacle bounding box
-  return playerBox.intersectsBox(obstacleBox); // Check for intersection
- 
+    const playerBox = new THREE.Box3().setFromObject(character);
+    const obstacleBox = new THREE.Box3().setFromObject(obstacles);
+    return playerBox.intersectsBox(obstacleBox);
 }
-// Update obstacles and check for collisions
+
 function updateObstacles() {
-  
-  obstacles.forEach((obstacle, index) => {
-    if (bossActive) return; 
-    // Move obstacle forward
-    obstacle.position.z += speed;
+    obstacles.forEach((obstacle, index) => {
+        if (bossActive) return;
+        obstacle.position.z += speed;
+        if (obstacle.position.z > 6) resetObstacle(obstacle);
 
-    // Reset obstacle when out of view
-    if (obstacle.position.z > 6) {
-      resetObstacle(obstacle);
-    }
+        const distanceToPlayer = Math.abs(obstacle.position.z - character.position.z);
+        if (distanceToPlayer < 5) passingCarSound.volume = Math.max(0, 1 - distanceToPlayer / 5);
 
-    const distanceToPlayer = Math.abs(obstacle.position.z - character.position.z);
+        if (obstacle.position.z > character.position.z && !obstacle.hasPlayedPassingSound) {
+            passingCarSound.play();
+            obstacle.hasPlayedPassingSound = true;
+        }
 
-    // Adjust volume based on distance
-    if (distanceToPlayer < 5) {
-      passingCarSound.volume = Math.max(0, 1 - distanceToPlayer / 5); // Reduce volume with distance
-    }
-
-    if (obstacle.position.z > character.position.z && !obstacle.hasPlayedPassingSound) {
-      passingCarSound.play(); // Play the passing car sound
-      obstacle.hasPlayedPassingSound = true; // Ensure the sound is played only once
-    }
-
-    // Check for collision with the player character
-    if (detectCollisionwithCars(character, obstacle)) {
-      if (isShieldActive) {
-        console.log('Shield protected the player from collision!');
-        resetObstacle(obstacle); // Reset obstacle without penalty
-          score+=1000
-        // Play explosion sound for each obstacle
-        // explodeSound.play();
-
-        // Trigger the explosion visual effect for each obstacle
-        createExplosion(obstacle.position); // Position the explosion at the obstacle's location
-      } else {
-        console.log('Collision detected! Game Over.');
-        onPlayerCollision(); // Handle collision without shield
-      }
-    }
-  });
+        if (detectCollisionwithCars(character, obstacle)) {
+            if (character.position.y > 1.0) {
+                score += 50; // Bonus for jumping over car
+            } else if (isShieldActive) {
+                resetObstacle(obstacle);
+                score += 1000;
+                createExplosion(obstacle.position);
+            } else {
+                onPlayerCollision();
+            }
+        }
+    });
 }
 
-
-// Function to handle collision effects
 function onPlayerCollision() {
-  // Example: Stop the game or reduce player's health
-  console.log('Game Over or Player Health Reduced!');
-
-  gameOver()
-  handleCollision()
-  honkLSound.play()
-  // Add game logic here
+    gameOver();
+    handleCollision();
+    honkLSound.play();
 }
 
-// Reset obstacle position and shuffle
 function resetObstacle(obstacle) {
-  obstacle.position.z = -20; // Reset to starting position
-  obstacle.position.x = Math.random() * 10 - 5; // Randomize x position
+    obstacle.position.z = -20;
+    obstacle.position.x = Math.random() * 10 - 5;
+    obstacle.hasPlayedPassingSound = false;
 }
 
-// Periodically create obstacles
 setInterval(() => {
-  if (obstacles.length < maxObstacles) createObstacles();
+    if (obstacles.length < maxObstacles) createObstacles();
 }, 6000);
 
-
-
+// Boss Mode
 function startBossMode() {
-  bossActive = true;
-  console.log("Boss Mode Activated!");
+    bossActive = true;
+    console.log("Boss Mode Activated! Distance Traveled:", distanceTraveled);
+    removeAllObstacles();
+    document.getElementById("playerHealthBarContainer").style.display = "block";
+    spawnBoss();
 
-  removeAllObstacles()
-
-  document.getElementById("playerHealthBarContainer").style.display = "block";
-  
-  
-  spawnBoss();
-
-  // Record the start time (if needed for other logic)
-  bossStartTime = Date.now();
-
-  // Set up the boss mode timer and countdown
-  let timeRemaining =   200; // 5 minutes in seconds
-
-  // Show the Boss Timer UI (dynamically created earlier in JS)
-  bossTimerUI.style.display = "block";
-  bossTimerText.textContent = timeRemaining;
-
-  // Countdown every second:
-  bossTimeCountdown = setInterval(() => {
-    timeRemaining--;
+    bossStartTime = Date.now();
+    let timeRemaining = 200;
+    bossTimerUI.style.display = "block";
     bossTimerText.textContent = timeRemaining;
-    if (timeRemaining <= 0) {
-      // When time is up, end boss mode.
-      endBossMode();
-    }
-  }, 1000);
 
-  // Also set a safety timeout to end boss mode after 5 minutes
-  bossModeTimer = setTimeout(() => {
-    if (!gameOver) endBossMode();
-  }, 200000); // 300,000 ms = 5 minutes
+    bossTimeCountdown = setInterval(() => {
+        timeRemaining--;
+        bossTimerText.textContent = timeRemaining;
+        if (timeRemaining <= 0) endBossMode();
+    }, 1000);
+
+    bossModeTimer = setTimeout(() => {
+        if (!gameOverTriggered) endBossMode();
+    }, 200000);
 }
 
-
 function spawnBoss() {
-  gltfLoader.load('the_ugv_robot_2.glb', (gltf) => {
-    boss = gltf.scene;
-    boss.scale.set(2, 2, 2);
-    boss.position.set(0, 0, -30);
-    gameScene.add(boss);
-     updateBossPosition()
-   startBossShooting()
-    
-  });
+    gltfLoader.load('the_ugv_robot_2.glb', (gltf) => {
+        boss = gltf.scene;
+        boss.scale.set(2, 2, 2);
+        boss.position.set(0, 0, -30);
+        gameScene.add(boss);
+        updateBossPosition();
+        startBossShooting();
+    });
 }
 
 const bulletTexture = textureLoader.load('409100639_da9fefba-d870-4caa-ba9f-8f0c9f3d50ff.jpg');
 
-
 function createBossProjectile() {
-  const bulletGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.3, 8);
-  
-const bulletMaterial = new THREE.MeshStandardMaterial({
-  map: bulletTexture, 
-  side: THREE.DoubleSide,
-    metalness: 0.5,
-});
-  // const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
-  const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
+    const bulletGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.3, 8);
+    const bulletMaterial = new THREE.MeshStandardMaterial({ map: bulletTexture, side: THREE.DoubleSide, metalness: 0.5 });
+    const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
+    bullet.position.copy(boss.position);
+    bullet.rotation.x = Math.PI / 2;
 
-  
-  bullet.position.copy(boss.position);
-  bullet.rotation.x = Math.PI / 2; // Make it face forward
+    const targetPosition = character.position.clone();
+    targetPosition.y += 1.2;
+    const direction = new THREE.Vector3().subVectors(targetPosition, boss.position).normalize();
+    bullet.velocity = direction.multiplyScalar(bulletSpeed);
 
-  // Offset target position (aim at upper body)
-  const targetPosition = character.position.clone();
-  targetPosition.y += 1.2; // Move up to chest area
-
-  const direction = new THREE.Vector3().subVectors(targetPosition, boss.position).normalize();
-  bullet.velocity = direction.multiplyScalar(bulletSpeed);
-
- 
-  if (!bullet.velocity) {
-    console.error("Bullet velocity not set! Check boss and player positions.");
-  }
-
-  if (!character || !character.position) {
-    console.error("Character position is undefined! Bullet can't track player.");
-    return null; // Prevent creating the bullet if player data is missing
-  }
-  
-
-  gameScene.add(bullet);
-  return bullet;
+    if (!character || !character.position) return null;
+    gameScene.add(bullet);
+    return bullet;
 }
-
 
 function updateBossProjectiles() {
-  bossProjectiles.forEach((bullet, index) => {
-    if (!bullet || !bullet.velocity) {
-      console.warn("Bullet or velocity is undefined, skipping...");
-      return; // Prevent error by skipping undefined bullets
-    }
-
-    bullet.position.add(bullet.velocity);
-
-    // Remove if out of bounds
-    if (bullet.position.z > 50 || bullet.position.z < -50) {
-      gameScene.remove(bullet);
-      bossProjectiles.splice(index, 1);
-    }
-
-    // Check for collision with the player
-    if (detectCollisionwithPlayer(character, bullet)) {
-      handlePlayerCollision(bullet);
-      gameScene.remove(bullet);
-      bossProjectiles.splice(index, 1);
-    }
-  });
+    bossProjectiles.forEach((bullet, index) => {
+        if (!bullet || !bullet.velocity) return;
+        bullet.position.add(bullet.velocity);
+        if (bullet.position.z > 50 || bullet.position.z < -50) {
+            gameScene.remove(bullet);
+            bossProjectiles.splice(index, 1);
+        }
+        if (detectCollisionwithPlayer(character, bullet)) {
+            handlePlayerCollision(bullet);
+            gameScene.remove(bullet);
+            bossProjectiles.splice(index, 1);
+        }
+    });
 }
 
-// Detect collision between the character and the projectile
 function detectCollisionwithPlayer(character, bullet) {
-  return character.position.distanceTo(bullet.position) < 1.5;
+    return character.position.distanceTo(bullet.position) < 1.5;
 }
-
-
 
 function handlePlayerCollision(bullet) {
-  console.log("💥 Player hit by boss bullet!");
-playHitSound()
-  createBloodEffect(bullet.position); // Add blood splatter
-
-  // Small knockback effect
-  character.position.x += (Math.random() - 0.5) * 0.5;
-  // character.position.y += (Math.random() - 0.5) * 0.5;
-
-  // Reduce health or trigger death animation
-   characterHealth -= 5;
-   updateHealthUI()
-
-   if (characterHealth <= 0) {
-    gameOver()
-}
+    playHitSound();
+    createBloodEffect(bullet.position);
+    character.position.x += (Math.random() - 0.5) * 0.5;
+    characterHealth -= 5;
+    updateHealthUI();
+    if (characterHealth <= 0) gameOver();
 }
 
 function createBloodEffect(position) {
-  const bloodParticles = new THREE.Group();
-  for (let i = 0; i < 20; i++) {
-    const bloodGeometry = new THREE.SphereGeometry(0.05, 4, 4);
-    const bloodMaterial = new THREE.MeshBasicMaterial({ color: 0x8b0000 }); // Dark red
-    const bloodDrop = new THREE.Mesh(bloodGeometry, bloodMaterial);
+    const bloodParticles = new THREE.Group();
+    for (let i = 0; i < 20; i++) {
+        const bloodGeometry = new THREE.SphereGeometry(0.05, 4, 4);
+        const bloodMaterial = new THREE.MeshBasicMaterial({ color: 0x8b0000 });
+        const bloodDrop = new THREE.Mesh(bloodGeometry, bloodMaterial);
+        bloodDrop.position.copy(position);
+        bloodDrop.velocity = new THREE.Vector3(
+            (Math.random() - 0.5) * 0.2,
+            (Math.random() - 0.5) * 0.3,
+            (Math.random() - 0.5) * 0.2
+        );
+        bloodParticles.add(bloodDrop);
+    }
+    gameScene.add(bloodParticles);
 
-    bloodDrop.position.copy(position);
-    bloodDrop.velocity = new THREE.Vector3(
-      (Math.random() - 0.5) * 0.2,
-      (Math.random() - 0.5) * 0.3,
-      (Math.random() - 0.5) * 0.2
-    );
-
-    bloodParticles.add(bloodDrop);
-  }
-
-  gameScene.add(bloodParticles);
-
-  // Animate blood particles
-  function animateBlood() {
-    bloodParticles.children.forEach((particle) => {
-      particle.position.add(particle.velocity);
-      particle.velocity.y -= 0.01; // Gravity effect
-    });
-
-    setTimeout(() => gameScene.remove(bloodParticles), 800);
-  }
-
-  setInterval(animateBlood, 50);
+    function animateBlood() {
+        bloodParticles.children.forEach((particle) => {
+            particle.position.add(particle.velocity);
+            particle.velocity.y -= 0.01;
+        });
+        setTimeout(() => gameScene.remove(bloodParticles), 800);
+    }
+    setInterval(animateBlood, 50);
 }
 
-
-
 function updateBossPosition() {
-  // Store the movement interval in a global variable so we can clear it later
-  bossMovementInterval = setInterval(() => {
-    if (!boss || !character) return;
-    const dx = character.position.x - boss.position.x;
-    if (Math.abs(dx) > 0.1) {
-      boss.position.x += dx * bossSpeed;
-    }
-  }, 500);
+    bossMovementInterval = setInterval(() => {
+        if (!boss || !character) return;
+        const dx = character.position.x - boss.position.x;
+        if (Math.abs(dx) > 0.1) boss.position.x += dx * bossSpeed;
+    }, 500);
 }
 
 function createMuzzleFlash() {
-  const flashMaterial = new THREE.SpriteMaterial({ color: 0xffee00 });
-  const muzzleFlash = new THREE.Sprite(flashMaterial);
-  muzzleFlash.scale.set(1, 1, 1);
-  muzzleFlash.position.copy(boss.position);
-  gameScene.add(muzzleFlash);
-  setTimeout(() => gameScene.remove(muzzleFlash), muzzleFlashDuration);
+    const flashMaterial = new THREE.SpriteMaterial({ color: 0xffee00 });
+    const muzzleFlash = new THREE.Sprite(flashMaterial);
+    muzzleFlash.scale.set(1, 1, 1);
+    muzzleFlash.position.copy(boss.position);
+    gameScene.add(muzzleFlash);
+    setTimeout(() => gameScene.remove(muzzleFlash), muzzleFlashDuration);
 }
-
 
 let bossShootingInterval;
 function startBossShooting() {
-    if (bossShootingInterval) return;  // Prevent duplicate intervals
+    if (bossShootingInterval) return;
     console.log("🚀 Boss Started Shooting!");
-
     bossShootingInterval = setInterval(() => {
         if (!bossActive) {
             clearInterval(bossShootingInterval);
@@ -1038,129 +934,97 @@ function startBossShooting() {
     }, 2000);
 }
 
-
 function checkBossTrigger() {
-  if (distanceTraveled >= 5000 && !bossActive && !bossModeCompleted) 
-    {
-      startBossMode();
+    console.log("Checking Boss Trigger - Distance:", distanceTraveled, "Boss Active:", bossActive, "Boss Mode Completed:", bossModeCompleted);
+    if (distanceTraveled >= 5000 && !bossActive && !bossModeCompleted) {
+        startBossMode();
     }
 }
 
 function endBossMode() {
-  bossActive = false;
-  bossModeCompleted = true;
-  console.log("Boss Mode Ended! Resuming obstacle creation...");
+    bossActive = false;
+    bossModeCompleted = true;
+    collectibleCount += 10;
+    document.getElementById("playerHealthBarContainer").style.display = "none";
+    bossTimerUI.style.display = "none";
 
-  // Reward the player (adjust as needed)
-  collectibleCount += 10;
-  console.log(`Player received 10 Bitcoins! Total: ${collectibleCount}`);
+    if (!bossmodeMusic.paused) {
+        bossmodeMusic.pause();
+        bossmodeMusic.currentTime = 0;
+    }
+    if (gameSceneMusic.paused) gameSceneMusic.play();
 
-  // Hide boss UI elements
-  document.getElementById("playerHealthBarContainer").style.display = "none";
-  bossTimerUI.style.display = "none";
-
-  // Switch music: Stop boss mode music and start game scene music
-  if (!bossmodeMusic.paused) {
-    bossmodeMusic.pause();
-    bossmodeMusic.currentTime = 0;
-  }
-  if (gameSceneMusic.paused) {
-    gameSceneMusic.play();
-  }
-
-  // Clear boss-related intervals and timeouts
-  clearInterval(bossTimeCountdown);
-  clearTimeout(bossModeTimer);
-  clearInterval(bossMovementInterval);
-  if (bossShootingInterval) {
-    clearInterval(bossShootingInterval);
-    bossShootingInterval = null;
-  }
-
-  // Remove the boss from the scene if it exists
-  if (boss) {
-    gameScene.remove(boss);
-    boss = null;
-  }
-
-  // Restart obstacle creation (using a single interval)
-  startObstacleCreation();
+    clearInterval(bossTimeCountdown);
+    clearTimeout(bossModeTimer);
+    clearInterval(bossMovementInterval);
+    if (bossShootingInterval) {
+        clearInterval(bossShootingInterval);
+        bossShootingInterval = null;
+    }
+    if (boss) {
+        gameScene.remove(boss);
+        boss = null;
+    }
+    startObstacleCreation();
 }
-
 
 let obstaclesInterval;
-
 function startObstacleCreation() {
-  // Clear any existing interval first (to avoid stacking)
-  clearInterval(obstaclesInterval);
-  obstaclesInterval = setInterval(createObstacles, 3000);
+    clearInterval(obstaclesInterval);
+    obstaclesInterval = setInterval(createObstacles, 3000);
 }
 
-
-// Helper to remove all obstacles from the scene
 function removeAllObstacles() {
-  obstacles.forEach(obstacle => gameScene.remove(obstacle));
-  obstacles.length = 0;
+    obstacles.forEach(obstacle => gameScene.remove(obstacle));
+    obstacles.length = 0;
 }
 
 function createHealthBars() {
-  // Create Boss Health Bar
-  const bossHealthBarContainer = document.createElement("div");
-  bossHealthBarContainer.id = "bossHealthBarContainer";
-  bossHealthBarContainer.style.display = "none";
-  bossHealthBarContainer.style.position = "absolute";
-  bossHealthBarContainer.style.top = "10px";
-  bossHealthBarContainer.style.left = "50%";
-  bossHealthBarContainer.style.transform = "translateX(-50%)";
-  bossHealthBarContainer.style.background = "rgba(0,0,0,0.7)";
-  bossHealthBarContainer.style.padding = "10px";
-  bossHealthBarContainer.style.borderRadius = "10px";
+    const bossHealthBarContainer = document.createElement("div");
+    bossHealthBarContainer.id = "bossHealthBarContainer";
+    bossHealthBarContainer.style.display = "none";
+    bossHealthBarContainer.style.position = "absolute";
+    bossHealthBarContainer.style.top = "10px";
+    bossHealthBarContainer.style.left = "50%";
+    bossHealthBarContainer.style.transform = "translateX(-50%)";
+    bossHealthBarContainer.style.background = "rgba(0,0,0,0.7)";
+    bossHealthBarContainer.style.padding = "10px";
+    bossHealthBarContainer.style.borderRadius = "10px";
+    const bossHealthBar = document.createElement("div");
+    bossHealthBar.id = "bossHealthBar";
+    bossHealthBar.style.width = "150px";
+    bossHealthBar.style.height = "20px";
+    bossHealthBar.style.background = "red";
+    bossHealthBarContainer.appendChild(bossHealthBar);
+    document.body.appendChild(bossHealthBarContainer);
 
-  const bossHealthBar = document.createElement("div");
-  bossHealthBar.id = "bossHealthBar";
-  bossHealthBar.style.width = "150px";
-  bossHealthBar.style.height = "20px";
-  bossHealthBar.style.background = "red";
-
-  bossHealthBarContainer.appendChild(bossHealthBar);
-  document.body.appendChild(bossHealthBarContainer);
-
-  // Create Player Health Bar
-  const playerHealthBarContainer = document.createElement("div");
-  playerHealthBarContainer.id = "playerHealthBarContainer";
-  playerHealthBarContainer.style.display = "none";
-  playerHealthBarContainer.style.position = "absolute";
-  playerHealthBarContainer.style.top = "5px";
-  playerHealthBarContainer.style.left = "50%";
-  playerHealthBarContainer.style.transform = "translateX(-50%)";
-  playerHealthBarContainer.style.background = "rgba(0,0,0,0.7)";
-  playerHealthBarContainer.style.padding = "10px";
-  playerHealthBarContainer.style.borderRadius = "10px";
-
-  const playerHealthBar = document.createElement("div");
-  playerHealthBar.id = "playerHealthBar";
-  playerHealthBar.style.width = "150px";
-  playerHealthBar.style.height = "15px";
-  playerHealthBar.style.background = "green";
-
-  playerHealthBarContainer.appendChild(playerHealthBar);
-  document.body.appendChild(playerHealthBarContainer);
+    const playerHealthBarContainer = document.createElement("div");
+    playerHealthBarContainer.id = "playerHealthBarContainer";
+    playerHealthBarContainer.style.display = "none";
+    playerHealthBarContainer.style.position = "absolute";
+    playerHealthBarContainer.style.top = "5px";
+    playerHealthBarContainer.style.left = "50%";
+    playerHealthBarContainer.style.transform = "translateX(-50%)";
+    playerHealthBarContainer.style.background = "rgba(0,0,0,0.7)";
+    playerHealthBarContainer.style.padding = "10px";
+    playerHealthBarContainer.style.borderRadius = "10px";
+    const playerHealthBar = document.createElement("div");
+    playerHealthBar.id = "playerHealthBar";
+    playerHealthBar.style.width = "150px";
+    playerHealthBar.style.height = "15px";
+    playerHealthBar.style.background = "green";
+    playerHealthBarContainer.appendChild(playerHealthBar);
+    document.body.appendChild(playerHealthBarContainer);
 }
-
-// Call this function when the game loads
 createHealthBars();
 
-
 function updateHealthUI() {
-  const bossHealthBar = document.getElementById("bossHealthBar");
-  const playerHealthBar = document.getElementById("playerHealthBar");
-
-  if (bossHealthBar) bossHealthBar.style.width = `${bossHealth}px`;
-  if (playerHealthBar) playerHealthBar.style.width = `${characterHealth}px`;
+    const bossHealthBar = document.getElementById("bossHealthBar");
+    const playerHealthBar = document.getElementById("playerHealthBar");
+    if (bossHealthBar) bossHealthBar.style.width = `${bossHealth}px`;
+    if (playerHealthBar) playerHealthBar.style.width = `${characterHealth}px`;
 }
 
-
-// Create Boss Mode Timer UI dynamically
 let bossTimerUI = document.createElement("div");
 bossTimerUI.id = "bossTimer";
 bossTimerUI.style.position = "absolute";
@@ -1173,122 +1037,76 @@ bossTimerUI.style.background = "rgba(0, 0, 0, 0.7)";
 bossTimerUI.style.color = "white";
 bossTimerUI.style.padding = "5px 10px";
 bossTimerUI.style.borderRadius = "5px";
-bossTimerUI.style.display = "none"; // Hidden initially
-
-// Add text inside
+bossTimerUI.style.display = "none";
 let bossTimerText = document.createElement("span");
 bossTimerText.id = "bossTimeRemaining";
 bossTimerUI.appendChild(document.createTextNode("Time Left: "));
 bossTimerUI.appendChild(bossTimerText);
 bossTimerUI.appendChild(document.createTextNode("s"));
-
-// Append to body
 document.body.appendChild(bossTimerUI);
 
+// Game Stats and High Score
+let score = 0, collectibleCount = 0, isShieldActive = false, shieldTimer = null, distanceTraveled = 0;
+let isJumping = false, jumpHeight = 2, jumpDuration = 1;
+const pointsPerDistance = 1;
+let shieldVisual = null, shieldSizeMultiplier = 1.7;
 
 
-
-// Animation loop for updating obstacles
-let score = 0; // Player's score
-let collectibleCount = 0; // Number of collectibles gathered
-let isShieldActive = false; // Flag for shield power-up
-let shieldTimer = null; // Timer for shield effect duration
-let distanceTraveled = 0; // Distance traveled by the player
-const pointsPerDistance = 1; // Points awarded per distance unit
-let shieldVisual = null; // Placeholder for shield visual
-let shieldSizeMultiplier = 1.7;
-// Notification messages for each milestone range
 const notifications = {
-  low: [
-    "Things are about to heat up!",
-    "Can you handle this?",
-    "It's getting serious now!",
-  ],
-  medium: [
-    "You're doing great—keep it up!",
-    "Don't lose focus now!",
-    "The challenge is rising!",
-  ],
-  high: [
-    "Only the best can survive this!",
-    "Stay sharp—it’s brutal now!",
-    "You're in elite territory!",
-  ],
+    low: ["Things are about to heat up!", "Can you handle this?", "It's getting serious now!"],
+    medium: ["You're doing great—keep it up!", "Don't lose focus now!", "The challenge is rising!"],
+    high: ["Only the best can survive this!", "Stay sharp—it’s brutal now!", "You're in elite territory!"],
 };
 
-// Function to pick a random notification
 function getRandomNotification(range) {
-  const messages = notifications[range];
-  return messages[Math.floor(Math.random() * messages.length)];
+    const messages = notifications[range];
+    return messages[Math.floor(Math.random() * messages.length)];
 }
 
-// Notify player about difficulty increase
 function notifyDifficultyIncrease(milestoneRange) {
-
-  if (bossActive) return;
-  const notificationText = getRandomNotification(milestoneRange);
-
-  const notification = document.createElement('div');
-  notification.textContent = notificationText;
-  notification.style.cssText = `
-    position: absolute;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(0, 0, 0, 0.7);
-    color: white;
-    padding: 10px 20px;
-    font-size: 16px;
-    border-radius: 5px;
-    z-index: 1000;
-    box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
-    animation: fadeInOut 3s ease-in-out;
-  `;
-  document.body.appendChild(notification);
-
-  setTimeout(() => {
-    notification.remove();
-  }, 3000); // Remove after 3 seconds
+    if (bossActive) return;
+    const notificationText = getRandomNotification(milestoneRange);
+    const notification = document.createElement('div');
+    notification.textContent = notificationText;
+    notification.style.cssText = `
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 10px 20px;
+        font-size: 16px;
+        borderRadius: 5px;
+        z-index: 1000;
+        box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        animation: fadeInOut 3s ease-in-out;
+    `;
+    document.body.appendChild(notification);
+    setTimeout(() => notification.remove(), 3000);
 }
 
-// Function to adjust speed based on progress
 function adjustSpeedBasedOnProgress() {
-  const milestonePassed = Math.floor(distanceTraveled / milestoneDistance);
-
-  if (milestonePassed > 0 && speed < maxGameSpeed) {
-    const milestoneRange =
-      milestonePassed <= 3
-        ? "low"
-        : milestonePassed <= 6
-        ? "medium"
-        : "high";
-
-    // Check if we crossed a new milestone
-    if (Math.floor(distanceTraveled) % milestoneDistance === 0) {
-      speed = Math.min(speed + speedIncrement, maxGameSpeed);
-      console.log(`Game speed increased to: ${speed}`);
-      if (!bossActive) {
-        notifyDifficultyIncrease(milestoneRange);
-      }
+    const milestonePassed = Math.floor(distanceTraveled / milestoneDistance);
+    if (milestonePassed > 0 && speed < maxGameSpeed) {
+        const milestoneRange = milestonePassed <= 3 ? "low" : milestonePassed <= 6 ? "medium" : "high";
+        if (Math.floor(distanceTraveled) % milestoneDistance === 0) {
+            speed = Math.min(speed + speedIncrement, maxGameSpeed);
+            if (!bossActive) notifyDifficultyIncrease(milestoneRange);
+        }
     }
-  }
 }
-
 
 function updateDistance(delta) {
-  if (bossActive) {
-    return; // Do nothing if boss mode is active
-  }
-  distanceTraveled += speed * delta; // Update distance only if not in boss mode
-  adjustSpeedBasedOnProgress();
-  checkBossTrigger();
+    if (bossActive) return;
+    distanceTraveled += speed * delta * 60;
+    console.log("Distance Traveled Updated:", distanceTraveled);
+    adjustSpeedBasedOnProgress();
+    checkBossTrigger();
 }
 
+const powerUps = [];
 
-const powerUps = []; // Array to store active power-ups*
-
-
-// Create stats container (UI styling)
 const statsContainer = document.createElement("div");
 statsContainer.style.position = "absolute";
 statsContainer.style.top = "10px";
@@ -1298,53 +1116,54 @@ statsContainer.style.padding = "10px";
 statsContainer.style.borderRadius = "8px";
 statsContainer.style.display = "flex";
 statsContainer.style.flexDirection = "column";
-statsContainer.style.gap = "10px"; // Add spacing between elements
- statsContainer.style.display = "none"; // Initially hidden
+statsContainer.style.gap = "10px";
+statsContainer.style.display = "none";
+document.body.appendChild(statsContainer);
 
-// Function to create a stat element with only an icon and number
-function createStatElement(imageSrc) {
-  const container = document.createElement("div");
-  container.style.display = "flex";
-  container.style.alignItems = "center";
-
-  const img = document.createElement("img");
-  img.src = imageSrc;
-  img.style.width = "25px"; // Adjust size as needed
-  img.style.height = "25px";
-  img.style.marginRight = "8px";
-
-  const valueElement = document.createElement("span");
-  valueElement.style.color = "white";
-  valueElement.style.fontSize = "18px";
-  valueElement.style.fontFamily = "Arial, sans-serif";
-  valueElement.innerHTML = "0"; // Default value
-
-  container.appendChild(img);
-  container.appendChild(valueElement);
-
-  return { container, valueElement };
+function createStatElement(imageSrc, value = 0) {
+    const container = document.createElement("div");
+    container.style.display = "flex";
+    container.style.alignItems = "center";
+    const img = document.createElement("img");
+    img.src = imageSrc;
+    img.style.width = "25px";
+    img.style.height = "25px";
+    img.style.marginRight = "8px";
+    const valueElement = document.createElement("span");
+    valueElement.style.color = "white";
+    valueElement.style.fontSize = "18px";
+    valueElement.style.fontFamily = "Arial, sans-serif";
+    valueElement.innerHTML = value;
+    container.appendChild(img);
+    container.appendChild(valueElement);
+    return { container, valueElement };
 }
 
-// Create individual stat elements (Pure icon-based)
 const scoreElement = createStatElement("xp_17596046.png");
 const coinsElement = createStatElement("https://img.icons8.com/?size=100&id=ovHld7NfgG9g&format=png&color=000000");
 const distanceElement = createStatElement("destination_854945.png");
+const highScoreElement = createStatElement("https://img.icons8.com/?size=100&id=JIHcx48yhK29&format=png&color=000000", highScore);
 
-// Append elements to the stats container
 statsContainer.appendChild(scoreElement.container);
 statsContainer.appendChild(coinsElement.container);
 statsContainer.appendChild(distanceElement.container);
+statsContainer.appendChild(highScoreElement.container);
 
-// Add stats container to the document body
-document.body.appendChild(statsContainer);
-
-// Function to update stats dynamically
 function updateScoreDisplay() {
-  scoreElement.valueElement.innerHTML = score;
-  coinsElement.valueElement.innerHTML = collectibleCount;
-  distanceElement.valueElement.innerHTML = Math.floor(distanceTraveled) + "m";
+    scoreElement.valueElement.innerHTML = score;
+    coinsElement.valueElement.innerHTML = collectibleCount;
+    distanceElement.valueElement.innerHTML = Math.floor(distanceTraveled) + "m";
+    highScoreElement.valueElement.innerHTML = highScore;
 }
 
+function updateHighScore() {
+    if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('highScore', highScore);
+        highScoreElement.valueElement.innerHTML = highScore;
+        mainMenuHighScoreText.innerHTML = `${highScore}`; // Update main menu high score
+    }
+}
 
 const gameOverContainer = document.createElement("div");
 gameOverContainer.style.position = "fixed";
@@ -1352,7 +1171,7 @@ gameOverContainer.style.top = "0";
 gameOverContainer.style.left = "0";
 gameOverContainer.style.width = "100vw";
 gameOverContainer.style.height = "100vh";
-gameOverContainer.style.backgroundColor = "rgba(0, 0, 0, 0.85)"; // Slightly more transparent dark overlay
+gameOverContainer.style.backgroundColor = "rgba(0, 0, 0, 0.85)";
 gameOverContainer.style.display = "flex";
 gameOverContainer.style.justifyContent = "center";
 gameOverContainer.style.alignItems = "center";
@@ -1360,33 +1179,30 @@ gameOverContainer.style.flexDirection = "column";
 gameOverContainer.style.color = "#fff";
 gameOverContainer.style.fontFamily = "'Poppins', sans-serif";
 gameOverContainer.style.zIndex = "1001";
-gameOverContainer.style.opacity = "0"; // Hidden initially
-gameOverContainer.style.transition = "opacity 0.5s ease-in-out"; // Smooth fade-in
-gameOverContainer.style.display = "none"; // Initially hidden
+gameOverContainer.style.opacity = "0";
+gameOverContainer.style.transition = "opacity 0.5s ease-in-out";
+gameOverContainer.style.display = "none";
 document.body.appendChild(gameOverContainer);
 
-// Game Over message
 const gameOverMessage = document.createElement("div");
 gameOverMessage.innerHTML = "GAME OVER";
 gameOverMessage.style.fontSize = "3rem";
 gameOverMessage.style.fontWeight = "bold";
 gameOverMessage.style.letterSpacing = "5px";
-gameOverMessage.style.color = "#ff4c4c"; // Bright red
+gameOverMessage.style.color = "#ff4c4c";
 gameOverMessage.style.textShadow = "0 0 15px rgba(255, 76, 76, 0.8)";
 gameOverMessage.style.marginBottom = "30px";
 gameOverContainer.appendChild(gameOverMessage);
 
-// Motivational message
 const motivationalMessage = document.createElement("div");
 motivationalMessage.innerHTML = "Don't be lazy, get up and try again!";
 motivationalMessage.style.fontSize = "1.5rem";
 motivationalMessage.style.fontWeight = "600";
-motivationalMessage.style.color = "#ffd700"; // Gold color for emphasis
+motivationalMessage.style.color = "#ffd700";
 motivationalMessage.style.textShadow = "0 0 10px rgba(255, 215, 0, 0.8)";
 motivationalMessage.style.marginBottom = "20px";
 gameOverContainer.appendChild(motivationalMessage);
 
-// Summary container
 const summaryContainer = document.createElement("div");
 summaryContainer.style.textAlign = "center";
 summaryContainer.style.backgroundColor = "rgba(255, 255, 255, 0.1)";
@@ -1396,7 +1212,6 @@ summaryContainer.style.boxShadow = "0 4px 15px rgba(0, 0, 0, 0.5)";
 summaryContainer.style.width = "80%";
 summaryContainer.style.maxWidth = "400px";
 
-// Coins collected
 const coinsCollected = document.createElement("div");
 coinsCollected.id = "coinsCollected";
 coinsCollected.innerHTML = `<span style="color: #ffd700;">🪙 Coins Collected:</span> 0`;
@@ -1404,7 +1219,6 @@ coinsCollected.style.marginBottom = "10px";
 coinsCollected.style.fontSize = "1.5rem";
 summaryContainer.appendChild(coinsCollected);
 
-// Total score
 const totalScore = document.createElement("div");
 totalScore.id = "totalScore";
 totalScore.innerHTML = `<span style="color: #4caf50;">⭐ Score:</span> 0`;
@@ -1412,7 +1226,6 @@ totalScore.style.marginBottom = "10px";
 totalScore.style.fontSize = "1.5rem";
 summaryContainer.appendChild(totalScore);
 
-// Distance traveled
 const distanceTraveledDisplay = document.createElement("div");
 distanceTraveledDisplay.id = "distanceTraveled";
 distanceTraveledDisplay.innerHTML = `<span style="color: #2196f3;">📏 Distance Traveled:</span> 0m`;
@@ -1420,870 +1233,555 @@ distanceTraveledDisplay.style.marginBottom = "10px";
 distanceTraveledDisplay.style.fontSize = "1.5rem";
 summaryContainer.appendChild(distanceTraveledDisplay);
 
+const highScoreDisplay = document.createElement("div");
+highScoreDisplay.id = "highScore";
+highScoreDisplay.innerHTML = `<span style="color: #ff9800;">🏆 High Score:</span> ${highScore}`;
+highScoreDisplay.style.marginBottom = "10px";
+highScoreDisplay.style.fontSize = "1.5rem";
+summaryContainer.appendChild(highScoreDisplay);
+
 gameOverContainer.appendChild(summaryContainer);
 
-// Restart button
 const restartButton = document.createElement("button");
 restartButton.innerHTML = "Restart Game";
 restartButton.style.marginTop = "30px";
 restartButton.style.padding = "15px 30px";
 restartButton.style.fontSize = "1.2rem";
 restartButton.style.color = "#fff";
-restartButton.style.backgroundColor = "#4caf50"; // Green button
+restartButton.style.backgroundColor = "#4caf50";
 restartButton.style.border = "none";
 restartButton.style.borderRadius = "25px";
 restartButton.style.cursor = "pointer";
 restartButton.style.boxShadow = "0 4px 15px rgba(76, 175, 80, 0.4)";
 restartButton.style.transition = "all 0.3s ease";
 restartButton.addEventListener("mouseenter", () => {
-  restartButton.style.backgroundColor = "#388e3c";
-  restartButton.style.boxShadow = "0 6px 20px rgba(56, 142, 60, 0.6)";
+    restartButton.style.backgroundColor = "#388e3c";
+    restartButton.style.boxShadow = "0 6px 20px rgba(56, 142, 60, 0.6)";
 });
 restartButton.addEventListener("mouseleave", () => {
-  restartButton.style.backgroundColor = "#4caf50";
-  restartButton.style.boxShadow = "0 4px 15px rgba(76, 175, 80, 0.4)";
+    restartButton.style.backgroundColor = "#4caf50";
+    restartButton.style.boxShadow = "0 4px 15px rgba(76, 175, 80, 0.4)";
 });
 restartButton.addEventListener("click", restartGame);
 gameOverContainer.appendChild(restartButton);
 
-
-// Function to trigger game over
 function gameOver() {
-  console.log("Game Over!");
-  gameOverTriggered=true
-  // Stop game logic
-  cancelAnimationFrame(animationFrameId); // Stops the animation loop
-  // updateScoreDisplay()
-  document.getElementById("coinsCollected").innerHTML = `Coins Collected: ${collectibleCount}`;
-  document.getElementById("totalScore").innerHTML = `Score: ${score}`;
-  document.getElementById("distanceTraveled").innerHTML = `Distance Traveled: ${Math.floor(distanceTraveled)}m`;
+    gameOverTriggered = true;
+    cancelAnimationFrame(animationFrameId);
+    updateHighScore();
 
+    document.getElementById("coinsCollected").innerHTML = `Coins Collected: ${collectibleCount}`;
+    document.getElementById("totalScore").innerHTML = `Score: ${score}`;
+    document.getElementById("distanceTraveled").innerHTML = `Distance Traveled: ${Math.floor(distanceTraveled)}m`;
+    document.getElementById("highScore").innerHTML = `<span style="color: #ff9800;">🏆 High Score:</span> ${highScore}`;
 
-
-  if (bossActive) {
-    clearTimeout(bossModeTimer);
-    clearInterval(bossMovementInterval);
-    clearInterval(bossShootingInterval);
-    bossShootingInterval = null;
-    clearInterval(bossTimeCountdown);
-    if (boss) {
-      gameScene.remove(boss);
-      boss = null;
+    if (bossActive) {
+        clearTimeout(bossModeTimer);
+        clearInterval(bossMovementInterval);
+        clearInterval(bossShootingInterval);
+        bossShootingInterval = null;
+        clearInterval(bossTimeCountdown);
+        if (boss) {
+            gameScene.remove(boss);
+            boss = null;
+        }
+        document.getElementById("bossHealthBarContainer").style.display = "none";
+        document.getElementById("playerHealthBarContainer").style.display = "none";
+        bossTimerUI.style.display = "none";
     }
-    document.getElementById("bossHealthBarContainer").style.display = "none";
-    document.getElementById("playerHealthBarContainer").style.display = "none";
-    bossTimerUI.style.display = "none";
-  }
- // Show Game Over container with fade-in effect
- gameOverContainer.style.display = "flex";
- setTimeout(() => {
-   gameOverContainer.style.opacity = "1";
- }, 50); // Delay for transition effect
-  statsContainer.style.display = "none"; // Hide stats
-}
 
+    gameOverContainer.style.display = "flex";
+    setTimeout(() => gameOverContainer.style.opacity = "1", 50);
+    statsContainer.style.display = "none";
+    pauseButton.style.display = 'none';
+}
 
 function restartGame() {
-  console.log("Restarting game...");
+    score = 0;
+    collectibleCount = 0;
+    distanceTraveled = 0;
+    speed = 0.45;
+    character.position.set(0, 0, 0);
+    characterHealth = 100;
+    updateHealthUI();
 
-  // Reset core game variables
-  score = 0;
-  collectibleCount = 0;
-  distanceTraveled = 0;
-  speed = 0.7;
-  character.position.set(0, 0, 0);
-  characterHealth = 100; // Reset health to full
-  updateHealthUI();
-
-
-  bossActive = false;
-  bossModeCompleted = false; // Allow boss mode to be triggered again
-
-
-  // Remove obstacles and power-ups
-  obstacles.forEach(obstacle => gameScene.remove(obstacle));
-  obstacles.length = 0;
-  powerUps.forEach(powerUp => gameScene.remove(powerUp));
-  powerUps.length = 0;
-
-  // Reset shield effect
-  isShieldActive = false;
-  clearTimeout(shieldTimer);
-
-  // If boss mode was active, clear all boss intervals and remove the boss
-  if (bossActive) {
     bossActive = false;
+    bossModeCompleted = false;
+    gameOverTriggered = false;
+    isPaused = false;
+    isJumping = false;
+
+    obstacles.forEach(obstacle => gameScene.remove(obstacle));
+    obstacles.length = 0;
+    powerUps.forEach(powerUp => gameScene.remove(powerUp));
+    powerUps.length = 0;
+
+    isShieldActive = false;
+    if (shieldVisual) {
+        gameScene.remove(shieldVisual);
+        shieldVisual = null;
+    }
+    clearTimeout(shieldTimer);
+
+    if (boss) {
+        gameScene.remove(boss);
+        boss = null;
+    }
     clearTimeout(bossModeTimer);
     clearInterval(bossMovementInterval);
     clearInterval(bossShootingInterval);
     bossShootingInterval = null;
     clearInterval(bossTimeCountdown);
-    if (boss) {
-      gameScene.remove(boss);
-      boss = null;
-    }
     document.getElementById("bossHealthBarContainer").style.display = "none";
     document.getElementById("playerHealthBarContainer").style.display = "none";
     bossTimerUI.style.display = "none";
-  }
-  
-  // Switch music: Ensure boss mode music stops and game scene music starts
-  if (!bossmodeMusic.paused) {
-    bossmodeMusic.pause();
-    bossmodeMusic.currentTime = 0;
-  }
-  if (gameSceneMusic.paused) {
-    gameSceneMusic.play();
-  }
 
-  // Hide UI elements
-  statsContainer.style.display = "none";
-  gameOverContainer.style.display = "none";
-  updateScoreDisplay();
+    if (!bossmodeMusic.paused) {
+        bossmodeMusic.pause();
+        bossmodeMusic.currentTime = 0;
+    }
+    if (gameSceneMusic.paused && isMusicPlaying) gameSceneMusic.play();
 
-  // Restart obstacle creation
-  startObstacleCreation();
-
-  // Restart animation loop
-  animate();
+    statsContainer.style.display = "none";
+    gameOverContainer.style.opacity = "0";
+    gameOverContainer.style.display = "none";
+    pauseButton.style.display = 'block';
+    mainMenuHighScoreText.innerHTML = `${highScore}`;
+    mainMenuHighScoreContainer.style.display = 'block';
+    updateScoreDisplay();
+    startObstacleCreation();
+    animate();
 }
 
-
-// Power-Up Models
+// Power-Ups
 const powerUpModels = [
-  { name: 'shield', model: 'medieval_wood_heater_shield.glb' },
-  { name: 'bitcoin', model: 'realistic_3d_bitcoin_model__crypto_asset.glb' },
-  { name: 'changeposition', model: 'potion_for_media__motion.glb' }
+    { name: 'shield', model: 'medieval_wood_heater_shield.glb' },
+    { name: 'bitcoin', model: 'realistic_3d_bitcoin_model__crypto_asset.glb' },
+    { name: 'changeposition', model: 'potion_for_media__motion.glb' }
 ];
 
-
-
-
-// Create Power-Ups
 function createPowerUps() {
-  const selectedPowerUp = powerUpModels[Math.floor(Math.random() * powerUpModels.length)];
-  
-  gltfLoader.load(
-    selectedPowerUp.model,
-    (gltf) => {
-      const model = gltf.scene;
-
-      // Scale and position adjustments
-      model.scale.set(0.3, 0.3, 0.3);
-      model.position.set(
-        Math.random() * 10 - 5, // Random x position
-        0.5, // y position
-        -20 // Far back on the z-axis
-      );
-
-      // Add a custom property for power-up type
-      model.userData.type = selectedPowerUp.name;
-
-      // Add to scene and power-up array
-      gameScene.add(model);
-      powerUps.push(model);
-    },
-    undefined,
-    (error) => {
-      console.error(`Error loading power-up model:`, error);
-    }
-  );
+    const selectedPowerUp = powerUpModels[Math.floor(Math.random() * powerUpModels.length)];
+    gltfLoader.load(selectedPowerUp.model, (gltf) => {
+        const model = gltf.scene;
+        model.scale.set(0.3, 0.3, 0.3);
+        model.position.set(Math.random() * 10 - 5, 0.5, -20);
+        model.userData.type = selectedPowerUp.name;
+        gameScene.add(model);
+        powerUps.push(model);
+    }, undefined, (error) => console.error(`Error loading power-up model:`, error));
 }
-setInterval(() => {
-  createPowerUps();
-}, 10000); // Create a power-up every 10 seconds
+setInterval(createPowerUps, 10000);
 
-// Update Power-Ups
 function updatePowerUps() {
-  powerUps.forEach((powerUp, index) => {
-    powerUp.position.z += speed;
-
-    // Remove power-up if out of view
-    if (powerUp.position.z > 6) {
-      gameScene.remove(powerUp);
-      powerUps.splice(index, 1);
-    }
-
-    // Detect collision with character
-    if (detectCollisionwithCars(character, powerUp)) {
-      triggerPowerUpEffect(powerUp.userData.type);
-      gameScene.remove(powerUp);
-      powerUps.splice(index, 1);
-      powerUpSound.play()
-    }
-  });
+    powerUps.forEach((powerUp, index) => {
+        powerUp.position.z += speed;
+        if (powerUp.position.z > 6) {
+            gameScene.remove(powerUp);
+            powerUps.splice(index, 1);
+        }
+        if (detectCollisionwithCars(character, powerUp)) {
+            triggerPowerUpEffect(powerUp.userData.type);
+            gameScene.remove(powerUp);
+            powerUps.splice(index, 1);
+            powerUpSound.play();
+        }
+    });
 }
 
-// Trigger Power-Up Effect
 function triggerPowerUpEffect(type) {
-  if(type === 'shield') {
-    collectShield()
-    
-    // activateShield();
-  } else if (type === 'bitcoin') {
-    rewardBitcoin();
-  }
-
-  else if (type === 'changeposition') {
-   changecharacterPosition()
-  }
+    if (type === 'shield') collectShield();
+    else if (type === 'bitcoin') rewardBitcoin();
+    else if (type === 'changeposition') changecharacterPosition();
 }
 
+function changecharacterPosition() {
+    collectedPositions++;
+    updatePositionButton();
+}
 
-function changecharacterPosition(){
-  collectedPositions++;
-  updatePositionButton()
-  }
-const defaultSpeed=0.8
-const speedboost= 2;
+const defaultSpeed = 0.8;
+const speedboost = 2;
 let shieldMaterial;
 
 function createShieldVisual() {
-  // Calculate shield size based on character's size
-  const shieldSize = character.scale.x * shieldSizeMultiplier; // Adjust based on character's scale
-
-  // Create a semi-transparent sphere
-  const shieldGeometry = new THREE.SphereGeometry(shieldSize, 32, 32); // Higher segments for smoothness
-  shieldMaterial = new THREE.MeshBasicMaterial({
-    color: 0xddeeff, 
-    transparent: true,
-    opacity: 0.3, // Semi-transparent
-  });
-
-  const glowMaterial = new THREE.ShaderMaterial({
-    uniforms: {
-      viewVector: { type: "v3", value: camera.position },
-    },
-    vertexShader: `
-      varying vec3 vNormal;
-      void main() {
-        vNormal = normalize(normalMatrix * normal);
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }
-    `,
-    fragmentShader: `
-      varying vec3 vNormal;
-      void main() {
-        float intensity = pow(0.5 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
-      gl_FragColor = vec4(0.85, 0.92, 1.0, 0.3) * intensity;
-      }
-    `,
-    transparent: true,
-    blending: THREE.AdditiveBlending,
-  });
-  
-
-
-  // Create both meshes
-  const baseShield = new THREE.Mesh(shieldGeometry, shieldMaterial);
-  const glowShield = new THREE.Mesh(shieldGeometry, glowMaterial);
-
-  // Slightly scale the glow for a better visual effect
-  glowShield.scale.set(1.2, 1.2, 1.2);
-
-  // Group them together
-  const shieldGroup = new THREE.Group();
-  shieldGroup.add(baseShield);
-  shieldGroup.add(glowShield);
-
-  return shieldGroup;
+    const shieldSize = character.scale.x * shieldSizeMultiplier;
+    const shieldGeometry = new THREE.SphereGeometry(shieldSize, 32, 32);
+    shieldMaterial = new THREE.MeshBasicMaterial({ color: 0xddeeff, transparent: true, opacity: 0.3 });
+    const glowMaterial = new THREE.ShaderMaterial({
+        uniforms: { viewVector: { type: "v3", value: camera.position } },
+        vertexShader: `
+            varying vec3 vNormal;
+            void main() {
+                vNormal = normalize(normalMatrix * normal);
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+        `,
+        fragmentShader: `
+            varying vec3 vNormal;
+            void main() {
+                float intensity = pow(0.5 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
+                gl_FragColor = vec4(0.85, 0.92, 1.0, 0.3) * intensity;
+            }
+        `,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+    });
+    const baseShield = new THREE.Mesh(shieldGeometry, shieldMaterial);
+    const glowShield = new THREE.Mesh(shieldGeometry, glowMaterial);
+    glowShield.scale.set(1.2, 1.2, 1.2);
+    const shieldGroup = new THREE.Group();
+    shieldGroup.add(baseShield);
+    shieldGroup.add(glowShield);
+    return shieldGroup;
 }
 
-
-// Function to create explosion effect
 function createExplosion(position) {
-  const explosionGeometry = new THREE.SphereGeometry(2, 32, 32);
-  const explosionMaterial = new THREE.MeshBasicMaterial({
-    color: 0xffaa00, // Orange explosion color
-    transparent: true,
-    opacity: 0.7,
-  });
+    const explosionGeometry = new THREE.SphereGeometry(2, 32, 32);
+    const explosionMaterial = new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0.7 });
+    const explosion = new THREE.Mesh(explosionGeometry, explosionMaterial);
+    explosion.position.copy(position);
+    explodeSound.play();
+    gameScene.add(explosion);
 
-  const explosion = new THREE.Mesh(explosionGeometry, explosionMaterial);
-  explosion.position.copy(position);
-  explodeSound.play()
-  gameScene.add(explosion);
-
-  // Animate the explosion (grow and fade)
-  const duration = 500; // 500ms
-  const startTime = Date.now();
-
-  function animateExplosion() {
-    const elapsedTime = Date.now() - startTime;
-    const scale = 1 + (elapsedTime / duration) * 2; // Grow over time
-    explosion.scale.set(scale, scale, scale);
-    explosion.material.opacity = 1 - elapsedTime / duration; // Fade over time
-
-    if (elapsedTime < duration) {
-      requestAnimationFrame(animateExplosion);
-      
-    } else {
-      gameScene.remove(explosion); // Remove explosion after animation
+    const duration = 500;
+    const startTime = Date.now();
+    function animateExplosion() {
+        const elapsedTime = Date.now() - startTime;
+        const scale = 1 + (elapsedTime / duration) * 2;
+        explosion.scale.set(scale, scale, scale);
+        explosion.material.opacity = 1 - elapsedTime / duration;
+        if (elapsedTime < duration) requestAnimationFrame(animateExplosion);
+        else gameScene.remove(explosion);
     }
-  }
-
-  animateExplosion();
+    animateExplosion();
 }
-
-
-
 
 function pulseShield() {
-  if (shieldVisual) {
-    const scaleFactor = 1.05; // Scale slightly larger
-    const duration = 0.8; // Seconds for each pulse
-
-    gsap.to(shieldVisual.scale, {
-      x: scaleFactor,
-      y: scaleFactor,
-      z: scaleFactor,
-      duration: duration / 2,
-      yoyo: true, // Reverse the animation
-      repeat: -1, // Infinite pulse
-      ease: "sine.inOut",
-    });
-  }
+    if (shieldVisual) {
+        const scaleFactor = 1.05;
+        const duration = 0.8;
+        gsap.to(shieldVisual.scale, {
+            x: scaleFactor,
+            y: scaleFactor,
+            z: scaleFactor,
+            duration: duration / 2,
+            yoyo: true,
+            repeat: -1,
+            ease: "sine.inOut",
+        });
+    }
 }
 
-
-// Shield Effect
 function activateShield() {
-  if (isShieldActive || collectedShields <= 0) return;
-// powerUpActiveSound.play()
-
-  console.log('Shield activated!');
-  isShieldActive = true;
-  
-  // speed +=speedboost
-  collectedShields -= 1; // Deduct a shield
-  updateShieldButton(); // Update button display
-pulseShield()
-  shieldVisual = createShieldVisual();
-  shieldVisual.position.copy(character.position); // Align with the character
-  console.log('shield working')
-  gameScene.add(shieldVisual);
-
-  // Temporary invulnerability
-  shieldTimer = setTimeout(() => {
-    console.log('Shield deactivated!');
-    isShieldActive = false;
-    // speed=defaultSpeed
-    gameScene.remove(shieldVisual);
-  }, 5000); // Shield lasts for 5 seconds
+    if (isShieldActive || collectedShields <= 0) return;
+    isShieldActive = true;
+    collectedShields -= 1;
+    updateShieldButton();
+    pulseShield();
+    shieldVisual = createShieldVisual();
+    shieldVisual.position.copy(character.position);
+    gameScene.add(shieldVisual);
+    shieldTimer = setTimeout(() => {
+        isShieldActive = false;
+        gameScene.remove(shieldVisual);
+        shieldVisual = null;
+    }, 5000);
 }
 
-// Bitcoin Effect
 function rewardBitcoin() {
-  console.log('Bitcoin collected!');
-  collectibleCount++;
-  score += 5000; // Reward points for collecting Bitcoin
+    collectibleCount++;
+    score += 5000;
 }
-
-
 
 function updateScore() {
-  // Add distance traveled points
-  distanceTraveled += speed; // Increment distance based on game speed
-  score += pointsPerDistance;
-  scoreElement.innerHTML = `Score: ${score}`;
-  // Update score display
-  updateScoreDisplay();
+    distanceTraveled += speed;
+    score += pointsPerDistance;
+    updateScoreDisplay();
 }
 
-// function rewardCollectible() {
-//   collectibleCount++;
-//   score += pointsPerCollectible;
+let collectedPositions = 0, collectedShields = 0, shieldButton, positionButton;
 
-//   // Update score display
-//   updateScoreDisplay();
-// }
+function jump() {
+    if (isJumping || !character) return;
+    isJumping = true;
 
-// function resetScore() {
-//   score = 0;
-//   collectibleCount = 0;
-//   distanceTraveled = 0;
+    gsap.to(character.position, {
+        y: jumpHeight,
+        duration: jumpDuration / 2,
+        ease: 'power2.out',
+        onComplete: () => {
+            gsap.to(character.position, {
+                y: 0,
+                duration: jumpDuration / 2,
+                ease: 'power2.in',
+                onComplete: () => {
+                    isJumping = false;
+                },
+            });
+        },
+    });
+}
 
-//   // Update score display
-//   updateScoreDisplay();
-// }
-
-
-let collectedPositions = 0; // Track position-changing items collected
-let collectedShields = 0; // Track shields collected
-let shieldButton, positionButton;
-
-
-// Gamepad creation and button styling
 function gamepad() {
-  const gamepadContainer = document.createElement('div');
-  gamepadContainer.style.position = 'absolute';
-  gamepadContainer.style.bottom = '20px';
-  gamepadContainer.style.right = '20px';
-  gamepadContainer.style.display = 'flex';
-  gamepadContainer.style.flexDirection = 'column';
-  gamepadContainer.style.alignItems = 'center';
-  gamepadContainer.style.justifyContent = 'center';
-  gamepadContainer.style.gap = '20px';
-  gamepadContainer.style.zIndex = '1000';
+    const gamepadContainer = document.createElement('div');
+    gamepadContainer.style.position = 'absolute';
+    gamepadContainer.style.bottom = '20px';
+    gamepadContainer.style.right = '20px';
+    gamepadContainer.style.display = 'flex';
+    gamepadContainer.style.flexDirection = 'column';
+    gamepadContainer.style.alignItems = 'center';
+    gamepadContainer.style.justifyContent = 'center';
+    gamepadContainer.style.gap = '20px';
+    gamepadContainer.style.zIndex = '1000';
+    document.body.appendChild(gamepadContainer);
 
-  function createGamepadButton(label, action) {
-    const button = document.createElement('button');
-    button.style.width = '50px';
-    button.style.height = '50px';
-    button.style.borderRadius = '50%';  // Rounded corners
-    button.style.border = 'none';
-    button.style.background = 'rgba(255, 255, 255, 0.4)';  // Light white transparent background
-    button.style.color = '#fff';
-    button.style.fontSize = '20px';
-    button.style.fontWeight = 'bold';
-    button.style.cursor = 'pointer';
-    button.style.transition = 'all 0.3s ease';
-    button.style.position = 'relative';
-    button.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.2)'; // Subtle box shadow with soft edges
+    function createGamepadButton(label, action) {
+        const button = document.createElement('button');
+        button.style.width = '50px';
+        button.style.height = '50px';
+        button.style.borderRadius = '50%';
+        button.style.border = 'none';
+        button.style.background = 'rgba(255, 255, 255, 0.4)';
+        button.style.color = '#fff';
+        button.style.fontSize = '20px';
+        button.style.fontWeight = 'bold';
+        button.style.cursor = 'pointer';
+        button.style.transition = 'all 0.3s ease';
+        button.style.position = 'relative';
+        button.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.2)';
+        button.innerHTML = label;
+        button.addEventListener('mouseover', () => {
+            button.style.background = 'rgba(255, 255, 255, 0.6)';
+            button.style.transform = 'scale(1.05)';
+        });
+        button.addEventListener('mouseout', () => {
+            button.style.background = 'rgba(255, 255, 255, 0.4)';
+            button.style.transform = 'scale(1)';
+        });
+        button.addEventListener('click', action);
+        return button;
+    }
 
-    button.innerHTML = label;
-
-    button.addEventListener('mouseover', () => {
-      button.style.background = 'rgba(255, 255, 255, 0.6)';  // Slightly darker on hover
-      button.style.transform = 'scale(1.05)';  // Slight scale-up on hover
-    });
-    button.addEventListener('mouseout', () => {
-      button.style.background = 'rgba(255, 255, 255, 0.4)';  // Original transparent color
-      button.style.transform = 'scale(1)';  // Reset scale
-    });
-
-    button.addEventListener('click', action);
-
-    return button;
-  }
-
-
-  // Create shield button (A button)
-  shieldButton = createGamepadButton('X', activateShield);
-  gamepadContainer.appendChild(shieldButton);
-
-  // Create position change button (B button)
-  positionButton = createGamepadButton('O', changePosition);
-  gamepadContainer.appendChild(positionButton);
-
-  document.body.appendChild(gamepadContainer);
-
-  const shieldCountBadge = document.createElement('span');
-  shieldCountBadge.style.position = 'absolute';
-  shieldCountBadge.style.top = '10px';
-  shieldCountBadge.style.right = '10px';
-  shieldCountBadge.style.backgroundColor = '#ff6347';
-  shieldCountBadge.style.color = '#fff';
-  shieldCountBadge.style.fontSize = '5px';
-  shieldCountBadge.style.padding = '5px';
-  shieldCountBadge.style.borderRadius = '50%';
-  shieldCountBadge.innerHTML = collectedShields;
-  shieldButton.appendChild(shieldCountBadge);
-
-  const positionCountBadge = document.createElement('span');
-  positionCountBadge.style.position = 'absolute';
-  positionCountBadge.style.top = '10px';
-  positionCountBadge.style.right = '10px';
-  positionCountBadge.style.backgroundColor = '#ff6347';
-  positionCountBadge.style.color = '#fff';
-  positionCountBadge.style.fontSize = '5px';
-  positionCountBadge.style.padding = '5px';
-  positionCountBadge.style.borderRadius = '50%';
-  positionCountBadge.innerHTML = collectedPositions;
-  positionButton.appendChild(positionCountBadge);
+    shieldButton = createGamepadButton('X', activateShield);
+    gamepadContainer.appendChild(shieldButton);
+    positionButton = createGamepadButton('O', changePosition);
+    gamepadContainer.appendChild(positionButton);
+    const jumpButton = createGamepadButton('J', jump);
+    gamepadContainer.appendChild(jumpButton);
 }
 
-// Update position button to show current position item count and enable/disable button
 function updatePositionButton() {
-  positionButton.innerHTML = `O <span style="font-size:7px;">${collectedPositions}</span>`; // Update with smaller font size // Show position item count
-  positionButton.disabled = collectedPositions === 0; // Disable if no position items
-
-  // Adjust opacity
-  positionButton.style.opacity = collectedPositions === 0 ? '0.2' : '1'; // Fade if 0
+    positionButton.innerHTML = `O <span style="font-size:7px;">${collectedPositions}</span>`;
+    positionButton.disabled = collectedPositions === 0;
+    positionButton.style.opacity = collectedPositions === 0 ? '0.2' : '1';
 }
 
 function updateShieldButton() {
-  shieldButton.innerHTML = `X <span style="font-size:7px;">${collectedShields}</span>`; // Show shield count
-  shieldButton.disabled = collectedShields === 0; // Disable if no shields
-
-  // Adjust opacity
-  shieldButton.style.opacity = collectedShields === 0 ? '0.2' : '1'; // Fade if 0
+    shieldButton.innerHTML = `X <span style="font-size:7px;">${collectedShields}</span>`;
+    shieldButton.disabled = collectedShields === 0;
+    shieldButton.style.opacity = collectedShields === 0 ? '0.2' : '1';
 }
 
-// Function to change character position (random left/right movement with boundary limits)
 function changePosition() {
-  if (collectedPositions <= 0) {
-    console.log('No position-changing items available!');
-    return; // No position-changing item available
-  }
-
-  updatePositionButton(); // Update position button after changing position
-
-  // Randomly decide if the character should move left or right
-  const randomMove = Math.random() < 0.5 ? -5 : 5; // Random movement of -5 or 5 on x-axis for smoother movement
-
-  // Calculate new position X based on random movement
-  const newPositionX = character.position.x + randomMove;
-
-  // Ensure the new position is within the valid bounds
-  const halfGroundWidth = groundWidth / 2; // Since groundWidth is 50, halfGroundWidth will be 25
-
-  console.log(`Attempting to move character. New Position X: ${newPositionX}`);
-
-  // Check if the new position is within the valid bounds
-  if (newPositionX >= -halfGroundWidth && newPositionX <= halfGroundWidth) {
-    character.position.x = newPositionX; // Move character if within bounds
-    collectedPositions -= 1; // Deduct one position item
-    updatePositionButton()
-    const moveSound = new Audio('movement-swipe-whoosh-1-186575.mp3'); // Replace with your sound file path
-    moveSound.volume = 0.5;
-    moveSound.play();
-    console.log(`Character moved to position X: ${character.position.x}`);
-  } else {
-    console.log('Character movement out of bounds, no change made.');
-  }
+    if (collectedPositions <= 0) return;
+    updatePositionButton();
+    const randomMove = Math.random() < 0.5 ? -5 : 5;
+    const newPositionX = character.position.x + randomMove;
+    const halfGroundWidth = groundWidth / 2;
+    if (newPositionX >= -halfGroundWidth && newPositionX <= halfGroundWidth) {
+        character.position.x = newPositionX;
+        collectedPositions -= 1;
+        updatePositionButton();
+        const moveSound = new Audio('movement-swipe-whoosh-1-186575.mp3');
+        moveSound.volume = 0.5;
+        moveSound.play();
+    }
 }
 
-
-// Function to simulate collecting a shield
 function collectShield() {
-  collectedShields += 1; // Add one shield when collected
-  updateShieldButton();  // Update button to reflect new shield count
+    collectedShields += 1;
+    updateShieldButton();
 }
 
 function setupJoystick() {
-  // Create joystick container (rectangle with rounded edges)
-  const joystick = document.createElement("div");
-  Object.assign(joystick.style, {
-    position: "absolute",
-    bottom: "5%",
-    left: "3%",
-    width: "250px",
-    height: "60px",
-    borderRadius: "30px", // Rounded edges
-    background: "rgba(0, 0, 0, 0.5)",
-    touchAction: "none", // Prevent default touch behaviors
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-  });
-  document.body.appendChild(joystick);
+    const joystick = document.createElement("div");
+    Object.assign(joystick.style, {
+        position: "absolute",
+        bottom: "5%",
+        left: "3%",
+        width: "250px",
+        height: "60px",
+        borderRadius: "30px",
+        background: "rgba(0, 0, 0, 0.5)",
+        touchAction: "none",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+    });
+    document.body.appendChild(joystick);
 
-  // Create joystick handle (round, centered in the container)
-  const handle = document.createElement("div");
-  Object.assign(handle.style, {
-    width: "60px",
-    height: "60px",
-    borderRadius: "50%", // Circular handle
-    background: "rgba(255, 255, 255, 0.8)",
-    touchAction: "none", // Prevent touch defaults
-    position: "absolute",
-    transform: "translate(0, 0)",
-  });
-  joystick.appendChild(handle);
-// State variables for dragging
-let isDragging = false;
-let initialTouch = null;
+    const handle = document.createElement("div");
+    Object.assign(handle.style, {
+        width: "60px",
+        height: "60px",
+        borderRadius: "50%",
+        background: "rgba(255, 255, 255, 0.8)",
+        touchAction: "none",
+        position: "absolute",
+        transform: "translate(0, 0)",
+    });
+    joystick.appendChild(handle);
 
-const movementSpeed = 0.25; // Speed of player movement
-const deadZone = 7; // Ignore small movements near the center
-let joystickRadius = 30; // Default joystick radius
+    let isDragging = false, initialTouch = null;
+    const movementSpeed = 0.25, deadZone = 7;
+    let joystickRadius = 30;
 
-// Adjust joystick radius and related scaling dynamically
-function adjustJoystickRadius() {
-  const screenWidth = window.innerWidth;
-  const screenHeight = window.innerHeight;
-
-  // Dynamically scale joystick radius (adjust as necessary)
-  joystickRadius = Math.min(screenWidth, screenHeight) * 0.15; // Use 15% of the smallest screen dimension
-}
-
-// Adjust joystick handle size on window resize
-window.addEventListener("resize", adjustJoystickRadius);
-
-// Handle touch start
-joystick.addEventListener("touchstart", (e) => {
-  isDragging = true;
-  initialTouch = e.touches[0];
-});
-
-// Handle touch move
-joystick.addEventListener("touchmove", (e) => {
-  if (isDragging && initialTouch) {
-    const rect = joystick.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-
-    // Calculate horizontal movement
-    let deltaX = e.touches[0].clientX - centerX;
-
-    // Restrict movement within joystick radius
-    const distance = Math.abs(deltaX);
-    if (distance > joystickRadius) {
-      deltaX = Math.sign(deltaX) * joystickRadius; // Clamp to joystick radius
+    function adjustJoystickRadius() {
+        const screenWidth = window.innerWidth;
+        const screenHeight = window.innerHeight;
+        joystickRadius = Math.min(screenWidth, screenHeight) * 0.15;
     }
+    window.addEventListener("resize", adjustJoystickRadius);
 
-    // Ignore small movements in the dead zone
-    if (Math.abs(deltaX) > deadZone) {
-      const normalizedX = deltaX / joystickRadius; // Normalize between -1 and 1
+    joystick.addEventListener("touchstart", (e) => {
+        isDragging = true;
+        initialTouch = e.touches[0];
+    });
 
-      // Move player within camera bounds
-      const { left, right } = calculateCameraBounds();
-      character.position.x = Math.min(Math.max(character.position.x + normalizedX * movementSpeed, left), right);
+    joystick.addEventListener("touchmove", (e) => {
+        if (isDragging && initialTouch) {
+            const rect = joystick.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            let deltaX = e.touches[0].clientX - centerX;
+            const distance = Math.abs(deltaX);
+            if (distance > joystickRadius) deltaX = Math.sign(deltaX) * joystickRadius;
+            if (Math.abs(deltaX) > deadZone) {
+                const normalizedX = deltaX / joystickRadius;
+                const { left, right } = calculateCameraBounds();
+                character.position.x = Math.min(Math.max(character.position.x + normalizedX * movementSpeed, left), right);
+                const handleOffsetX = Math.min(Math.max(deltaX, -joystickRadius + handle.offsetWidth / 2), joystickRadius - handle.offsetWidth / 2);
+                handle.style.transform = `translate(${handleOffsetX}px, 0)`;
+            }
+        }
+    });
 
-      // Update joystick handle position within bounds
-      const handleOffsetX = Math.min(
-        Math.max(deltaX, -joystickRadius + handle.offsetWidth / 2),
-        joystickRadius - handle.offsetWidth / 2
-      );
-      handle.style.transform = `translate(${handleOffsetX}px, 0)`; // Horizontal movement only
+    joystick.addEventListener("touchend", () => {
+        isDragging = false;
+        initialTouch = null;
+        handle.style.transform = "translate(0, 0)";
+    });
+
+    function calculateCameraBounds() {
+        const aspect = window.innerWidth / window.innerHeight;
+        const distance = camera.position.z - character.position.z;
+        const verticalFOV = THREE.MathUtils.degToRad(camera.fov);
+        const halfHeight = Math.tan(verticalFOV / 2) * distance;
+        const halfWidth = halfHeight * aspect;
+        return { left: -halfWidth + 0.1, right: halfWidth - 0.1 };
     }
-  }
+    adjustJoystickRadius();
+}
+
+let moveLeft = false, moveRight = false;
+window.addEventListener('keydown', (event) => {
+    if (event.key === 'ArrowLeft') moveLeft = true;
+    if (event.key === 'ArrowRight') moveRight = true;
+    if (event.key.toLowerCase() === 'p') changePosition();
+    if (event.key.toLowerCase() === 's') activateShield();
+    if (event.key === ' ' && !isJumping) jump();
 });
 
-// Handle touch end
-joystick.addEventListener("touchend", () => {
-  isDragging = false;
-  initialTouch = null;
-
-  // Reset joystick handle position
-  handle.style.transform = "translate(0, 0)";
+window.addEventListener('keyup', (event) => {
+    if (event.key === 'ArrowLeft') moveLeft = false;
+    if (event.key === 'ArrowRight') moveRight = false;
 });
 
-// Calculate camera bounds dynamically
-function calculateCameraBounds() {
-  const aspect = window.innerWidth / window.innerHeight;
-  const distance = camera.position.z - character.position.z; // Distance between camera and player
-  const verticalFOV = THREE.MathUtils.degToRad(camera.fov); // Convert FOV from degrees to radians
-  const halfHeight = Math.tan(verticalFOV / 2) * distance;
-  const halfWidth = halfHeight * aspect;
-
-  return {
-    left: -halfWidth + 0.1, // Add padding to avoid clipping
-    right: halfWidth - 0.1, // Add padding to avoid clipping
-  };
+function updatePlayer() {
+    if (moveLeft && character.position.x > -5) character.position.x -= 0.34;
+    if (moveRight && character.position.x < 5) character.position.x += 0.34;
 }
-
-
-// Call adjustJoystickRadius on initial load
-adjustJoystickRadius();
-}
-
-
-
-let moveLeft = false
-let moveRight = false
-
-
-window.addEventListener('keydown', (event) =>{
-if(event.key ==='ArrowLeft')
-moveLeft=true;
-if(event.key ==='ArrowRight')
-moveRight=true;
-
-if (event.key.toLowerCase() === 'p') {
-  changePosition(); // Call the changePosition function
-}
-
-
-if (event.key.toLowerCase() === 's') {
-  activateShield()
-}
-});
-
-window.addEventListener('keyup', (event) =>{
-  if(event.key ==='ArrowLeft')
-  
-    moveLeft=false;
-  
-  if(event.key ==='ArrowRight')
-    moveRight=false;
-    })
-
-
-       // Update player movement
-       function updatePlayer() {
-        if (moveLeft && character.position.x > -5) {
-          character.position.x -= 0.34;
-        }
-        if (moveRight && character.position.x < 5) {
-          character.position.x += 0.34;
-        }
-       }
-       
-       
-//        function setupControl(){
-
-//        // Create arrow button container
-// const controlsContainer = document.createElement("div");
-// controlsContainer.style.position = "fixed";
-// controlsContainer.style.bottom = "50px";
-// controlsContainer.style.left = "20%";
-// controlsContainer.style.transform = "translateX(-50%)";
-// controlsContainer.style.display = "flex";
-// controlsContainer.style.gap = "30px";
-// controlsContainer.style.zIndex = "100"; // Ensure it's above other elements
-// document.body.appendChild(controlsContainer);
-
-// // Function to create button
-// function createButton(emoji, direction) {
-//   const button = document.createElement("button");
-//   button.textContent = emoji;
-//   button.style.width = "70px";
-//   button.style.height = "70px";
-//   button.style.fontSize = "40px";
-//   button.style.border = "none";
-//   button.style.backgroundColor = "rgba(0, 0, 0, 0.2)"; // Transparent background
-//   button.style.color = "white";
-//   button.style.borderRadius = "50%";
-//   button.style.cursor = "pointer";
-//   button.style.backdropFilter = "blur(10px)"; // Glass effect
-//   button.style.transition = "0.2s ease";
-  
-//   // Button press effect
-//   button.addEventListener("mousedown", () => {
-//     button.style.backgroundColor = "rgba(255, 255, 255, 0.4)";
-//     button.style.transform = "scale(0.9)";
-//   });
-//   button.addEventListener("mouseup", () => {
-//     button.style.backgroundColor = "rgba(0, 0, 0, 0.2)";
-//     button.style.transform = "scale(1)";
-//   });
-
-//   // Move character when button is clicked
-//   button.addEventListener("click", () => moveCharacter(direction));
-  
-//   controlsContainer.appendChild(button);
-// }
-
-// // Create left and right buttons
-// createButton("⬅️", -0.25);
-// createButton("➡️", 0.25);
-
-// const moveDistance = 5; // Distance to move per click
-// // const groundWidth = 50; // Width of playable area
-// const halfGroundWidth = groundWidth / 2;
-
-// function moveCharacter(direction) {
-//   const newPositionX = character.position.x + (direction * moveDistance);
-
-//   // Ensure movement stays within bounds
-//   if (newPositionX >= -halfGroundWidth && newPositionX <= halfGroundWidth) {
-//     gsap.to(character.position, {
-//       x: newPositionX,
-//       duration: 0.2,
-//       ease: "power2.out"
-//     });
-//   }
-// }
-// }
-
 
 function updateModelSize() {
-  if (currentScene !== 'gameScene') return; // Only adjust in gameScene
-  if (window.innerWidth <= 768) {
-    // Mobile: Reduce size
-    character.scale.set(1.0, 1.0, 1.0);
-    obstacles.forEach(obstacle => obstacle.scale.set(1.0, 1.0, 1.0));
-  } else {
-    // PC: Default size
-    character.scale.set(1.4, 1.4, 1.4);
-    obstacles.forEach(obstacle => obstacle.scale.set(1.4, 1.4, 1.4));
-  }
+    if (currentScene !== 'gameScene') return;
+    if (window.innerWidth <= 768) {
+        character.scale.set(1.15, 1.15, 1.15);
+        obstacles.forEach(obstacle => obstacle.scale.set(1.15, 1.15, 1.15));
+    } else {
+        character.scale.set(1.3, 1.3, 1.3);
+        obstacles.forEach(obstacle => obstacle.scale.set(1.3, 1.3, 1.3));
+    }
 }
-
-
 
 function updateCameraPosition() {
-  if (currentScene !== 'gameScene') return; // Only adjust in gameScene
-  if (window.innerWidth <= 768) {
-    // Mobile: Higher camera view
-    camera.position.set(0, 4, 10);
-  } else {
-    // PC: Lower, closer camera view
-    camera.position.set(0, 4, 6);
-  }
-  camera.updateProjectionMatrix(); // Ensure projection updates
+    if (currentScene !== 'gameScene') return;
+    if (window.innerWidth <= 768) camera.position.set(0, 4, 10);
+    else camera.position.set(0, 4, 6);
+    camera.updateProjectionMatrix();
 }
 
-// Handle window resize
 window.addEventListener('resize', () => {
-  renderer.setSize(window.innerWidth, window.innerHeight); // Fix incorrect clientWidth
-  camera.aspect = window.innerWidth / window.innerHeight; 
-  camera.updateProjectionMatrix();
-  updateCameraPosition(); // Adjust camera when resizing
-  updateModelSize();
-  console.log('Resized');
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    updateCameraPosition();
+    updateModelSize();
 });
 
-const controls = new OrbitControls(camera,renderer.domElement)
-controls.enableZoom = false;  // Disable zooming
-controls.enablePan = false; // Disable panning (prevents movement of the camera in all directions)
-
-controls.maxPolarAngle = Math.PI / 2; // Restrict looking below ground
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableZoom = false;
+controls.enablePan = false;
+controls.maxPolarAngle = Math.PI / 2;
 controls.minPolarAngle = Math.PI / 4;
+controls.enableDamping = true;
+controls.dampingFactor = 0.25;
 
-// Prevent the camera from flipping around
-controls.enableDamping = true; // Smooth out movements
-controls.dampingFactor = 0.25; // Adjust damping factor for a smoother transition
+const clock = new THREE.Clock();
+let animationFrameId;
 
-// controls.autoRotate=true
-// // Set a fixed distance between the camera and target
-// controls.maxDistance = 10; // Set maximum distance of the camera from the target
-// controls.minDistance = 10; // Set minimum distance of the camera from the target (fixed distance)
-
- // Update controls to apply the changes
-
-
-
-
-
-
- const clock = new THREE.Clock()
- let animationFrameId;
-// Animation Loop
 function animate() {
-  animationFrameId = requestAnimationFrame(animate);
-  if (gameStarted) {
-  controls.update();
+    animationFrameId = requestAnimationFrame(animate);
+    if (gameStarted && !isPaused) {
+        controls.update();
+        const delta = clock.getDelta();
+        if (mixer) mixer.update(delta);
 
- 
-  const delta = clock.getDelta();
-   if (mixer) mixer.update(delta);
+        updateGround();
+        updateObstacles();
+        if (bossActive) {
+            updateBossProjectiles();
+            updateHealthUI();
+        }
+        updatePowerUps();
+        updateScoreDisplay();
+        updateScore();
+        updatePlayer();
+        updateDistance(delta);
 
+        if (isShieldActive && shieldVisual) {
+            shieldVisual.position.copy(character.position);
+        }
 
-
-updateGround()
-updateObstacles()
-if (bossActive) {
-  // updateBossPosition(); // Keep the boss moving towards the player
-  updateBossProjectiles(); // Update projectiles
-
-  updateHealthUI()
+        if (currentScene === 'gameScene') {
+            renderer.render(gameScene, camera);
+            controls.enableRotate = false;
+            controls.autoRotate = false;
+            statsContainer.style.display = "block";
+            mainMenuHighScoreContainer.style.display = 'none';
+            updateMusic();
+        }
+    } else if (currentScene === 'mainMenu') {
+        controls.enableRotate = true;
+        controls.autoRotate = true;
+        updateMusic();
+        renderer.render(mainMenuScene, camera);
+        statsContainer.style.display = "none";
+        pauseButton.style.display = 'none';
+        mainMenuHighScoreContainer.style.display = 'block';
+        mainMenuHighScoreText.innerHTML = `${highScore}`;
+    }
 }
-updatePowerUps()
-updateScoreDisplay()
-updateScore()
-updatePlayer()
-if (!bossActive) {
-  updateDistance(delta);
-}
-    if (currentScene === 'gameScene') {
-    renderer.render(gameScene, camera);
-    controls.enableRotate = false; 
-    controls.autoRotate=false;
-    statsContainer.style.display = "block";
-updateMusic()
 
-  }}
-
-  else if (currentScene === 'mainMenu') {
-    controls.enableRotate = true; 
-     controls.autoRotate=true;
-     updateMusic()
-    renderer.render(mainMenuScene, camera);
-  }
-}
 animate();
 initializeScene();
-updateCameraPosition()
+updateCameraPosition();

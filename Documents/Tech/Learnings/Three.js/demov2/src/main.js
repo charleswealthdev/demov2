@@ -171,7 +171,7 @@ function onWindowResize() {
 const mainMenuScene = new THREE.Scene();
 const gameScene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(0, 2.3, 7);
+camera.position.set(0, 2.3, 6.5);
 
 // Lighting
 const light = new THREE.AmbientLight(0xffffff, 1);
@@ -298,8 +298,8 @@ Object.assign(characterSelectionContainer.style, {
 availableCharacters.forEach(char => {
     const charButton = document.createElement('div');
     Object.assign(charButton.style, {
-        width: '100px',
-        padding: '15px',
+        width: '90px',
+        padding: '10px',
         background: 'rgba(255, 255, 255, 0.1)', // Unchanged, subtle against container
         borderRadius: '10px',
         cursor: 'pointer',

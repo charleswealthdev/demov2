@@ -130,7 +130,6 @@ volumeButton.addEventListener('mouseleave', () => {
 
 
 // Add buttons to document
-document.body.appendChild(musicButton);
 document.body.appendChild(pauseButton);
 
 // Create Main Menu UI
@@ -229,6 +228,8 @@ const pointsPerDistance = 1;
 let shieldVisual = null;
 const shieldSizeMultiplier = 1.7;
 let highScore = localStorage.getItem('highScore') ? parseInt(localStorage.getItem('highScore')) : 0;
+let timesPlayed = localStorage.getItem('timesPlayed') ? parseInt(localStorage.getItem('timesPlayed')) : 0;
+let totalCoinsClaimed = localStorage.getItem('totalCoinsClaimed') ? parseInt(localStorage.getItem('totalCoinsClaimed')) : 0;
 let currentScene = 'mainMenu';
 let gameStarted = false;
 let powerUpIntervalId = null;
@@ -562,7 +563,6 @@ gltfLoader.load('runestone.glb', (gltf) => {
 //     enableEnvMap(menuModel);
 // });
 
-document.body.appendChild(musicButton);
 
 const mainMenuHighScoreContainer = document.createElement('div');
 mainMenuHighScoreContainer.id = 'mainMenuHighScoreContainer';
@@ -595,6 +595,74 @@ mainMenuHighScoreText.style.fontFamily = 'Arial, sans-serif';
 mainMenuHighScoreContainer.appendChild(mainMenuHighScoreText);
 
 document.body.appendChild(mainMenuHighScoreContainer);
+
+// Main Menu Times Played Container
+const mainMenuTimesPlayedContainer = document.createElement('div');
+mainMenuTimesPlayedContainer.id = 'mainMenuTimesPlayedContainer';
+Object.assign(mainMenuTimesPlayedContainer.style, {
+    position: 'absolute',
+    top: '50px', // Adjusted to stack below high score
+    right: '10px',
+    display: 'flex',
+    alignItems: 'center',
+    background: 'rgba(255, 255, 255, 0.2)',
+    padding: '8px 12px',
+    borderRadius: '8px',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+    zIndex: '1000',
+});
+
+const timesPlayedIcon = document.createElement('img');
+timesPlayedIcon.src = 'https://img.icons8.com/?size=100&id=102561&format=png&color=000000'; // Gamepad icon
+timesPlayedIcon.style.width = '25px';
+timesPlayedIcon.style.height = '25px';
+timesPlayedIcon.style.marginRight = '8px';
+mainMenuTimesPlayedContainer.appendChild(timesPlayedIcon);
+
+const mainMenuTimesPlayedText = document.createElement('span');
+mainMenuTimesPlayedText.id = 'mainMenuTimesPlayedText';
+mainMenuTimesPlayedText.innerHTML = `${timesPlayed}`;
+mainMenuTimesPlayedText.style.color = '#9c27b0'; // Purple to match game over screen
+mainMenuTimesPlayedText.style.fontSize = '18px';
+mainMenuTimesPlayedText.style.fontFamily = 'Arial, sans-serif';
+mainMenuTimesPlayedContainer.appendChild(mainMenuTimesPlayedText);
+
+document.body.appendChild(mainMenuTimesPlayedContainer);
+
+// Main Menu Total Coins Container
+const mainMenuTotalCoinsContainer = document.createElement('div');
+mainMenuTotalCoinsContainer.id = 'mainMenuTotalCoinsContainer';
+Object.assign(mainMenuTotalCoinsContainer.style, {
+    position: 'absolute',
+    top: '90px', // Adjusted to stack below times played
+    right: '10px',
+    display: 'flex',
+    alignItems: 'center',
+    background: 'rgba(255, 255, 255, 0.2)',
+    padding: '8px 12px',
+    borderRadius: '8px',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+    zIndex: '1000',
+});
+
+const totalCoinsIcon = document.createElement('img');
+totalCoinsIcon.src = 'https://img.icons8.com/?size=100&id=ovHld7NfgG9g&format=png&color=000000'; // Coin icon
+totalCoinsIcon.style.width = '25px';
+totalCoinsIcon.style.height = '25px';
+totalCoinsIcon.style.marginRight = '8px';
+mainMenuTotalCoinsContainer.appendChild(totalCoinsIcon);
+
+const mainMenuTotalCoinsText = document.createElement('span');
+mainMenuTotalCoinsText.id = 'mainMenuTotalCoinsText';
+mainMenuTotalCoinsText.innerHTML = `${totalCoinsClaimed}`;
+mainMenuTotalCoinsText.style.color = '#ff5722'; // Deep orange to match game over screen
+mainMenuTotalCoinsText.style.fontSize = '18px';
+mainMenuTotalCoinsText.style.fontFamily = 'Arial, sans-serif';
+mainMenuTotalCoinsContainer.appendChild(mainMenuTotalCoinsText);
+
+document.body.appendChild(mainMenuTotalCoinsContainer);
+
+
 
 const modal = document.createElement('div');
 Object.assign(modal.style, {
@@ -690,6 +758,7 @@ Object.assign(pauseHighScore.style, {
     textShadow: '0 1px 3px rgba(0, 0, 0, 0.5)',
 });
 pauseModal.appendChild(pauseHighScore);
+pauseModal.appendChild(musicButton);
 
 const resumeButton = document.createElement('button');
 resumeButton.textContent = 'Resume Game';
@@ -795,9 +864,11 @@ startButton.addEventListener('mouseleave', () => {
 });
 startButton.addEventListener('click', () => {
     console.log('Start button clicked, switching to game scene');
+    timesPlayed += 1;
+    localStorage.setItem('timesPlayed', timesPlayed);
+    mainMenuTimesPlayedText.innerHTML = `${timesPlayed}`; // Update main menu display
     switchToGameScene();
 });
-
 helpButton.addEventListener('click', () => {
     console.log('Help button clicked');
     modalTitle.textContent = 'Help';
@@ -1111,6 +1182,9 @@ function activateShield() {
 
 function rewardBitcoin() {
     collectibleCount++;
+    totalCoinsClaimed++;
+    localStorage.setItem('totalCoinsClaimed', totalCoinsClaimed);
+    mainMenuTotalCoinsText.innerHTML = `${totalCoinsClaimed}`; // Update main menu display
     score += 5000;
 }
 
@@ -1635,6 +1709,8 @@ function gameOver() {
     document.getElementById("totalScore").innerHTML = `Score: ${score}`;
     document.getElementById("distanceTraveled").innerHTML = `Distance Traveled: ${Math.floor(distanceTraveled)}m`;
     document.getElementById("highScore").innerHTML = `<span style="color: #ff9800;">🏆 High Score:</span> ${highScore}`;
+    document.getElementById("timesPlayed").innerHTML = `<span style="color: #9c27b0;">🎮 Times Played:</span> ${timesPlayed}`;
+    document.getElementById("totalCoinsClaimed").innerHTML = `<span style="color: #ff5722;">💰 Total Coins Claimed:</span> ${totalCoinsClaimed}`;
     if (bossActive) {
         clearTimeout(bossModeTimer);
         clearInterval(bossMovementInterval);
@@ -1910,6 +1986,9 @@ function endBossMode() {
     bossActive = false;
     bossModeCompleted = true;
     collectibleCount += 10;
+    totalCoinsClaimed += 10; // Add 10 coins to total
+    localStorage.setItem('totalCoinsClaimed', totalCoinsClaimed);
+    mainMenuTotalCoinsText.innerHTML = `${totalCoinsClaimed}`;
     document.getElementById("playerHealthBarContainer").style.display = "none";
     bossTimerUI.style.display = "none";
     if (!bossmodeMusic.paused) {
@@ -2047,7 +2126,21 @@ highScoreDisplay.innerHTML = `<span style="color: #ff9800;">🏆 High Score:</sp
 highScoreDisplay.style.marginBottom = "10px";
 highScoreDisplay.style.fontSize = "1.5rem";
 summaryContainer.appendChild(highScoreDisplay);
+// Load persisted values from localStorage, defaulting to 0 if not set
+// Create UI elements for new stats
+const timesPlayedDisplay = document.createElement("div");
+timesPlayedDisplay.id = "timesPlayed";
+timesPlayedDisplay.innerHTML = `<span style="color: #9c27b0;">🎮 Times Played:</span> ${timesPlayed}`;
+timesPlayedDisplay.style.marginBottom = "10px";
+timesPlayedDisplay.style.fontSize = "1.5rem";
+summaryContainer.appendChild(timesPlayedDisplay);
 
+const totalCoinsDisplay = document.createElement("div");
+totalCoinsDisplay.id = "totalCoinsClaimed";
+totalCoinsDisplay.innerHTML = `<span style="color: #ff5722;">💰 Total Coins Claimed:</span> ${totalCoinsClaimed}`;
+totalCoinsDisplay.style.marginBottom = "10px";
+totalCoinsDisplay.style.fontSize = "1.5rem";
+summaryContainer.appendChild(totalCoinsDisplay);
 gameOverContainer.appendChild(summaryContainer);
 
 const restartButton = document.createElement("button");

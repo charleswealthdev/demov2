@@ -263,7 +263,7 @@ const availableCharacters = [
 availableCharacters.forEach(char => {
     const charButton = document.createElement('div');
     Object.assign(charButton.style, {
-        width: '150px',
+        width: '100px',
         padding: '15px',
         background: 'rgba(255, 255, 255, 0.1)',
         borderRadius: '10px',

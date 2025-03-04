@@ -153,12 +153,6 @@ Object.assign(mainMenuUI.style, {
 document.body.appendChild(mainMenuUI);
 
 // Character Selection UI
-const characterSelectionContainer = document.createElement('div');
-Object.assign(characterSelectionContainer.style, {
-    display: 'flex',
-    gap: '20px',
-    marginBottom: '20px'
-});
 
 mainMenuUI.appendChild(startButton);
 mainMenuUI.appendChild(helpButton);
@@ -177,7 +171,7 @@ function onWindowResize() {
 const mainMenuScene = new THREE.Scene();
 const gameScene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(0, 2, 5);
+camera.position.set(0, 2, 6);
 
 // Lighting
 const light = new THREE.AmbientLight(0xffffff, 1);
@@ -252,20 +246,61 @@ let tilesReady = false;
 let animationFrameId = null;
 let isPaused = false;
 let isMusicPlaying = false;
-
-// Character Selection Variables
 let selectedCharacter = 'myavatar.glb';
+let currentCharacterModel = null; // To track and remove the current character model in mainMenuScene
 const availableCharacters = [
     { id: 'myavatar', model: 'myavatar.glb', name: 'Classic Runner', description: 'The original runner with balanced stats.' },
     { id: 'ninja', model: 'avatar2.glb', name: 'Ninja', description: 'Fast and agile, but more vulnerable.' }
 ];
+
+
+// Function to load and display the selected character in mainMenuScene
+function loadCharacterInMainMenu(modelPath) {
+    // Remove the previous character model if it exists
+    if (currentCharacterModel) {
+        mainMenuScene.remove(currentCharacterModel);
+        currentCharacterModel = null; // Ensure it’s nullified immediately
+    }
+
+    // Load the new character model
+    gltfLoader.load(modelPath, (gltf) => {
+        // Double-check removal in case of race condition
+        if (currentCharacterModel) {
+            mainMenuScene.remove(currentCharacterModel);
+        }
+        currentCharacterModel = gltf.scene;
+        currentCharacterModel.scale.set(1.3, 1.3, 1.3); // Match game scene scale
+        currentCharacterModel.position.set(0, 1, 2); // Position in front of camera
+        mainMenuScene.add(currentCharacterModel);
+        enableEnvMap(currentCharacterModel); // Reuse existing enableEnvMap function
+    }, undefined, (error) => {
+        console.error(`Error loading character ${modelPath}:`, error);
+        // Reset currentCharacterModel on error to avoid stale references
+        currentCharacterModel = null;
+    });
+}
+
+// Initial load of the default character
+loadCharacterInMainMenu(selectedCharacter);
+
+
+// Character Selection UI
+const characterSelectionContainer = document.createElement('div');
+Object.assign(characterSelectionContainer.style, {
+    display: 'flex',
+    gap: '20px',
+    marginBottom: '20px',
+    background: 'rgba(255, 255, 255, 0.02)', // Adjusted to a subtle lighter shade (from 0.3 to 0.2)
+    padding: '10px', // Optional: kept for framing
+    borderRadius: '10px' // Optional: kept for consistency
+});
 
 availableCharacters.forEach(char => {
     const charButton = document.createElement('div');
     Object.assign(charButton.style, {
         width: '100px',
         padding: '15px',
-        background: 'rgba(255, 255, 255, 0.1)',
+        background: 'rgba(255, 255, 255, 0.1)', // Unchanged, subtle against container
         borderRadius: '10px',
         cursor: 'pointer',
         textAlign: 'center',
@@ -291,7 +326,8 @@ availableCharacters.forEach(char => {
         document.querySelectorAll('.char-button').forEach(btn => 
             btn.style.border = '2px solid transparent');
         charButton.style.border = '2px solid #4CAF50';
-        console.log(`Selected character: ${char.name} (${selectedCharacter})`); // Debug log
+        console.log(`Selected character: ${char.name} (${selectedCharacter})`);
+        loadCharacterInMainMenu(selectedCharacter); // Update character in mainMenuScene
     });
 
     charButton.classList.add('char-button');
@@ -299,7 +335,6 @@ availableCharacters.forEach(char => {
 });
 
 mainMenuUI.appendChild(characterSelectionContainer);
-
 
 function loadSelectedCharacter() {
     if (character) {
@@ -337,11 +372,17 @@ function switchToGameScene() {
     gameStarted = true;
     console.log('Switching to game scene');
 
+
+    if (currentCharacterModel) {
+        mainMenuScene.remove(currentCharacterModel);
+        currentCharacterModel = null;
+    }
+
     // Reset game state
     score = 0;
     collectibleCount = 0;
     distanceTraveled = 0;
-    speed = 0.45;
+    speed = 0.5;
     characterHealth = 100;
     bossActive = false;
     bossModeCompleted = false;
@@ -389,7 +430,7 @@ function restartGame() {
     score = 0;
     collectibleCount = 0;
     distanceTraveled = 0;
-    speed = 0.45;
+    speed = 0.5;
     characterHealth = 100;
     updateHealthUI();
     bossActive = false;
@@ -513,13 +554,13 @@ gltfLoader.load('runestone.glb', (gltf) => {
     enableEnvMap(menuBG);
 });
 
-gltfLoader.load('avatarland.glb', (gltf) => {
-    menuModel = gltf.scene;
-    menuModel.scale.set(0.9, 0.9, 0.9);
-    menuModel.position.set(0, 0.7, 3);
-    mainMenuScene.add(menuModel);
-    enableEnvMap(menuModel);
-});
+// gltfLoader.load('avatarland.glb', (gltf) => {
+//     menuModel = gltf.scene;
+//     menuModel.scale.set(0.9, 0.9, 0.9);
+//     menuModel.position.set(0, 0.7, 3);
+//     mainMenuScene.add(menuModel);
+//     enableEnvMap(menuModel);
+// });
 
 document.body.appendChild(musicButton);
 
@@ -1311,11 +1352,20 @@ function updateModelSize() {
     }
 }
 
+// function updateCameraPosition() {
+//     if (currentScene !== 'gameScene') return;
+//     if (window.innerWidth <= 768) camera.position.set(0, 4, 10);
+//     else camera.position.set(0, 4, 6);
+//     camera.updateProjectionMatrix();
+// }
+
 function updateCameraPosition() {
-    if (currentScene !== 'gameScene') return;
-    if (window.innerWidth <= 768) camera.position.set(0, 4, 10);
-    else camera.position.set(0, 4, 6);
-    camera.updateProjectionMatrix();
+    if (currentScene === 'gameScene') {
+        if (window.innerWidth <= 768) camera.position.set(0, 4, 10);
+        else camera.position.set(0, 4, 6);
+        camera.updateProjectionMatrix();
+    }
+    // No adjustment for mainMenuScene, keeping it at (0, 3, 8)
 }
 
 window.addEventListener('resize', () => {
